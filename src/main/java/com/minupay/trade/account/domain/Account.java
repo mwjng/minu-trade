@@ -5,6 +5,7 @@ import com.minupay.trade.common.exception.ErrorCode;
 import com.minupay.trade.common.exception.MinuTradeException;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
@@ -12,6 +13,7 @@ import lombok.NoArgsConstructor;
         name = "accounts",
         indexes = @Index(name = "idx_user_id", columnList = "user_id", unique = true)
 )
+@Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Account extends BaseTimeEntity {
 
@@ -69,9 +71,4 @@ public class Account extends BaseTimeEntity {
     public void close() {
         this.status = AccountStatus.CLOSED;
     }
-
-    public Long getId() { return id; }
-    public Long getUserId() { return userId; }
-    public Long getWalletId() { return walletId; }
-    public AccountStatus getStatus() { return status; }
 }

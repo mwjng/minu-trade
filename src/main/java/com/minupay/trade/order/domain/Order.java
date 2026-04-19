@@ -5,6 +5,7 @@ import com.minupay.trade.common.exception.ErrorCode;
 import com.minupay.trade.common.exception.MinuTradeException;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
@@ -18,6 +19,7 @@ import java.math.BigDecimal;
                 @Index(name = "uk_orders_idem_key", columnList = "idempotency_key", unique = true)
         }
 )
+@Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Order extends BaseTimeEntity {
 
@@ -133,16 +135,4 @@ public class Order extends BaseTimeEntity {
     public int remainingQuantity() {
         return quantity - filledQuantity;
     }
-
-    public Long getId() { return id; }
-    public Long getAccountId() { return accountId; }
-    public String getStockCode() { return stockCode; }
-    public OrderSide getSide() { return side; }
-    public OrderType getType() { return type; }
-    public BigDecimal getPrice() { return price; }
-    public int getQuantity() { return quantity; }
-    public int getFilledQuantity() { return filledQuantity; }
-    public OrderStatus getStatus() { return status; }
-    public String getIdempotencyKey() { return idempotencyKey; }
-    public Long getPaymentId() { return paymentId; }
 }

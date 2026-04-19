@@ -3,12 +3,14 @@ package com.minupay.trade.common.idempotency;
 import com.minupay.trade.common.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 
 @Entity
 @Table(name = "idempotency_keys")
+@Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class IdempotencyKey extends BaseTimeEntity {
 
@@ -57,10 +59,4 @@ public class IdempotencyKey extends BaseTimeEntity {
     public boolean isExpired(Instant now) {
         return now.isAfter(expireAt);
     }
-
-    public String getKey() { return key; }
-    public String getRequestHash() { return requestHash; }
-    public String getResponse() { return response; }
-    public IdempotencyStatus getStatus() { return status; }
-    public Instant getExpireAt() { return expireAt; }
 }

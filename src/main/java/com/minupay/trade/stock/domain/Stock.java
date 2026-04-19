@@ -5,12 +5,14 @@ import com.minupay.trade.common.exception.ErrorCode;
 import com.minupay.trade.common.exception.MinuTradeException;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
 
 @Entity
 @Table(name = "stocks")
+@Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Stock extends BaseTimeEntity {
 
@@ -92,13 +94,4 @@ public class Stock extends BaseTimeEntity {
             throw new MinuTradeException(ErrorCode.INVALID_INPUT);
         }
     }
-
-    public String getCode() { return code; }
-    public String getName() { return name; }
-    public Market getMarket() { return market; }
-    public String getSector() { return sector; }
-    public int getTickSize() { return tickSize; }
-    public Long getMarketCap() { return marketCap; }
-    public StockStatus getStatus() { return status; }
-    public LocalDate getListedAt() { return listedAt; }
 }
