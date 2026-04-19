@@ -18,7 +18,12 @@ public enum ErrorCode {
     ACCOUNT_NOT_FOUND(HttpStatus.NOT_FOUND, "AC001", "Account not found"),
     ACCOUNT_ALREADY_EXISTS(HttpStatus.CONFLICT, "AC002", "Account already exists for user"),
     ACCOUNT_NOT_ACTIVE(HttpStatus.UNPROCESSABLE_ENTITY, "AC003", "Account is not active"),
-    ACCOUNT_CLOSED(HttpStatus.UNPROCESSABLE_ENTITY, "AC004", "Account is closed");
+    ACCOUNT_CLOSED(HttpStatus.UNPROCESSABLE_ENTITY, "AC004", "Account is closed"),
+
+    // Stock
+    STOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "ST001", "Stock not found"),
+    STOCK_DELISTED(HttpStatus.UNPROCESSABLE_ENTITY, "ST002", "Stock is delisted"),
+    STOCK_NOT_TRADABLE(HttpStatus.UNPROCESSABLE_ENTITY, "ST003", "Stock is not tradable");
 
     private final HttpStatus httpStatus;
     private final String code;
