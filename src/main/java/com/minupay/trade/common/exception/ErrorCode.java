@@ -23,7 +23,16 @@ public enum ErrorCode {
     // Stock
     STOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "ST001", "Stock not found"),
     STOCK_DELISTED(HttpStatus.UNPROCESSABLE_ENTITY, "ST002", "Stock is delisted"),
-    STOCK_NOT_TRADABLE(HttpStatus.UNPROCESSABLE_ENTITY, "ST003", "Stock is not tradable");
+    STOCK_NOT_TRADABLE(HttpStatus.UNPROCESSABLE_ENTITY, "ST003", "Stock is not tradable"),
+
+    // Payment (minu-pay 연동)
+    PAY_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "P001", "Pay service unavailable"),
+    PAYMENT_FAILED(HttpStatus.UNPROCESSABLE_ENTITY, "P002", "Payment failed"),
+    PAYMENT_INSUFFICIENT_BALANCE(HttpStatus.UNPROCESSABLE_ENTITY, "P003", "Insufficient wallet balance"),
+
+    // Idempotency
+    IDEMPOTENCY_CONFLICT(HttpStatus.CONFLICT, "I001", "Idempotency key reused with different request"),
+    IDEMPOTENCY_IN_PROGRESS(HttpStatus.CONFLICT, "I002", "Idempotent request is still in progress");
 
     private final HttpStatus httpStatus;
     private final String code;
