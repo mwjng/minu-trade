@@ -12,7 +12,13 @@ public enum ErrorCode {
     // Auth
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "A001", "Unauthorized"),
     FORBIDDEN(HttpStatus.FORBIDDEN, "A002", "Forbidden"),
-    INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "A003", "Invalid or expired token");
+    INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "A003", "Invalid or expired token"),
+
+    // Account
+    ACCOUNT_NOT_FOUND(HttpStatus.NOT_FOUND, "AC001", "Account not found"),
+    ACCOUNT_ALREADY_EXISTS(HttpStatus.CONFLICT, "AC002", "Account already exists for user"),
+    ACCOUNT_NOT_ACTIVE(HttpStatus.UNPROCESSABLE_ENTITY, "AC003", "Account is not active"),
+    ACCOUNT_CLOSED(HttpStatus.UNPROCESSABLE_ENTITY, "AC004", "Account is closed");
 
     private final HttpStatus httpStatus;
     private final String code;
