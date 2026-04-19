@@ -32,7 +32,17 @@ public enum ErrorCode {
 
     // Idempotency
     IDEMPOTENCY_CONFLICT(HttpStatus.CONFLICT, "I001", "Idempotency key reused with different request"),
-    IDEMPOTENCY_IN_PROGRESS(HttpStatus.CONFLICT, "I002", "Idempotent request is still in progress");
+    IDEMPOTENCY_IN_PROGRESS(HttpStatus.CONFLICT, "I002", "Idempotent request is still in progress"),
+
+    // Order
+    ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "O001", "Order not found"),
+    ORDER_INVALID_PRICE(HttpStatus.BAD_REQUEST, "O002", "Invalid order price"),
+    ORDER_INVALID_QUANTITY(HttpStatus.BAD_REQUEST, "O003", "Invalid order quantity"),
+    ORDER_INVALID_STATE(HttpStatus.UNPROCESSABLE_ENTITY, "O004", "Invalid order state transition"),
+    ORDER_OVERFILL(HttpStatus.UNPROCESSABLE_ENTITY, "O005", "Order fill exceeds quantity"),
+    ORDER_TICK_NOT_ALIGNED(HttpStatus.BAD_REQUEST, "O006", "Price is not aligned with tick size"),
+    ORDER_MARKET_NOT_SUPPORTED(HttpStatus.BAD_REQUEST, "O007", "Market order is not yet supported"),
+    ORDER_FORBIDDEN(HttpStatus.FORBIDDEN, "O008", "Order does not belong to this account");
 
     private final HttpStatus httpStatus;
     private final String code;

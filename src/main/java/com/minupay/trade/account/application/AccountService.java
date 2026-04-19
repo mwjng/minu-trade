@@ -1,5 +1,6 @@
 package com.minupay.trade.account.application;
 
+import com.minupay.trade.account.application.dto.AccountForOrder;
 import com.minupay.trade.account.application.dto.AccountInfo;
 import com.minupay.trade.account.domain.Account;
 import com.minupay.trade.account.domain.AccountRepository;
@@ -32,10 +33,10 @@ public class AccountService {
     }
 
     @Transactional(readOnly = true)
-    public Account loadForOrder(Long userId) {
+    public AccountForOrder resolveForOrder(Long userId) {
         Account account = accountRepository.findByUserId(userId)
                 .orElseThrow(() -> new MinuTradeException(ErrorCode.ACCOUNT_NOT_FOUND));
         account.ensureCanPlaceOrder();
-        return account;
+        return new AccountForOrder(account.getId(), account.getWalletId());
     }
 }
