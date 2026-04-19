@@ -1,0 +1,149 @@
+spring:
+  application:
+    name: minu-trade
+  profiles:
+    active: local
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+server:
+  port: 8090
+
+jwt:
+  # minu-pay 와 동일한 secret 사용 (토큰 상호 검증)
+  secret: ${JWT_SECRET:minupay-dev-secret-key-must-be-at-least-32-characters}
+
+pay-service:
+  base-url: ${PAY_SERVICE_URL:http://localhost:8080}
+
+kis:
+  base-url: ${KIS_BASE_URL:https://openapivts.koreainvestment.com:29443}
+  app-key: ${KIS_APP_KEY:}
+  app-secret: ${KIS_APP_SECRET:}
+  websocket-url: ${KIS_WS_URL:ws://ops.koreainvestment.com:31000}
+
+outbox:
+  publisher:
+    delay-ms: 1000
+    max-retries: 5
+
+audit:
+  consumer:
+    group-id: trade-audit-consumer-group
+
+matching:
+  engine:
+    executor-keepalive-ms: 60000
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      payService:
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+  retry:
+    instances:
+      payService:
+        maxAttempts: 3
+        waitDuration: 500ms
+        retryExceptions:
+          - java.io.IOException
+          - org.springframework.web.client.ResourceAccessException
+  timelimiter:
+    instances:
+      payService:
+        timeoutDuration: 3s
+        cancelRunningFuture: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: jdbc:h2:mem:minutrade;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27018/minutrade}
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6380}
+    elasticsearch:
+      repositories:
+        enabled: true
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9093}
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url: jdbc:mysql://localhost:3307/minutrade?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=utf8mb4&allowPublicKeyRetrieval=true
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: minutrade
+    password: minutrade
+  data:
+    mongodb:
+      uri: mongodb://localhost:27018/minutrade
+    redis:
+      host: localhost
+      port: 6380
+  elasticsearch:
+    uris: http://localhost:9200
+  kafka:
+    bootstrap-servers: localhost:9093
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${DB_URL}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  data:
+    mongodb:
+      uri: ${MONGODB_URI}
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+  elasticsearch:
+    uris: ${ELASTICSEARCH_URIS}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false

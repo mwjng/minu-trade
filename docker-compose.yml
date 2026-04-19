@@ -1,0 +1,114 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: minutrade-mysql
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: minutrade
+      MYSQL_USER: minutrade
+      MYSQL_PASSWORD: minutrade
+      TZ: Asia/Seoul
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+09:00
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uminutrade", "-pminutrade"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mongodb:
+    image: mongo:7
+    container_name: minutrade-mongodb
+    restart: unless-stopped
+    ports:
+      - "27018:27017"
+    environment:
+      TZ: Asia/Seoul
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: minutrade-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: minutrade-elasticsearch
+    restart: unless-stopped
+    ports:
+      - "9200:9200"
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+      TZ: Asia/Seoul
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -E '\"status\":\"(green|yellow)\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  # Kafka는 KRaft 모드로 실행 (Zookeeper 불필요).
+  # 호스트(IDE)에서 접속할 때는 localhost:9093, 같은 도커 네트워크에서는 kafka:29092.
+  kafka:
+    image: bitnami/kafka:3.9
+    container_name: minutrade-kafka
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    environment:
+      KAFKA_CFG_NODE_ID: 1
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:29092,CONTROLLER://:29093,EXTERNAL://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,EXTERNAL://localhost:9093
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: "true"
+      ALLOW_PLAINTEXT_LISTENER: "yes"
+    volumes:
+      - kafka_data:/bitnami/kafka
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: minutrade-kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8082:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+
+volumes:
+  mysql_data:
+  mongo_data:
+  redis_data:
+  es_data:
+  kafka_data:
