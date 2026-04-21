@@ -25,6 +25,7 @@ public class KafkaConfig {
     public static final String TOPIC_ORDER_REJECTED = "order.rejected";
     public static final String TOPIC_ORDER_FILLED = "order.filled";
     public static final String TOPIC_ORDER_CANCELLED = "order.cancelled";
+    public static final String TOPIC_TRADE_EXECUTED = "trade.executed";
     public static final String TOPIC_HOLDING_UPDATED = "holding.updated";
     public static final String TOPIC_STOCK_UPDATED = "stock.updated";
     public static final String TOPIC_QUOTE_UPDATED = "quote.updated";
@@ -73,6 +74,7 @@ public class KafkaConfig {
     @Bean public NewTopic orderRejectedTopic()  { return TopicBuilder.name(TOPIC_ORDER_REJECTED).partitions(5).replicas(1).build(); }
     @Bean public NewTopic orderFilledTopic()    { return TopicBuilder.name(TOPIC_ORDER_FILLED).partitions(5).replicas(1).build(); }
     @Bean public NewTopic orderCancelledTopic() { return TopicBuilder.name(TOPIC_ORDER_CANCELLED).partitions(5).replicas(1).build(); }
+    @Bean public NewTopic tradeExecutedTopic()  { return TopicBuilder.name(TOPIC_TRADE_EXECUTED).partitions(5).replicas(1).build(); }
     @Bean public NewTopic holdingUpdatedTopic() { return TopicBuilder.name(TOPIC_HOLDING_UPDATED).partitions(5).replicas(1).build(); }
     @Bean public NewTopic stockUpdatedTopic()   { return TopicBuilder.name(TOPIC_STOCK_UPDATED).partitions(3).replicas(1).build(); }
     @Bean public NewTopic quoteUpdatedTopic()   { return TopicBuilder.name(TOPIC_QUOTE_UPDATED).partitions(10).replicas(1).build(); }

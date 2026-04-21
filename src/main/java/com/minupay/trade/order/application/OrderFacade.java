@@ -4,6 +4,7 @@ import com.minupay.trade.account.application.AccountService;
 import com.minupay.trade.account.application.dto.AccountForOrder;
 import com.minupay.trade.common.exception.ErrorCode;
 import com.minupay.trade.common.exception.MinuTradeException;
+import com.minupay.trade.order.application.dto.MatchCommand;
 import com.minupay.trade.order.application.dto.OrderInfo;
 import com.minupay.trade.order.application.dto.PlaceOrderCommand;
 import com.minupay.trade.order.domain.Order;
@@ -32,6 +33,7 @@ public class OrderFacade {
     private final PayServiceClient payServiceClient;
     private final OrderRepository orderRepository;
     private final OrderPersistenceService orderPersistenceService;
+    private final MatchingEngine matchingEngine;
 
     public OrderInfo placeOrder(Long userId, PlaceOrderCommand cmd) {
         Optional<Order> replay = orderRepository.findByIdempotencyKey(cmd.idempotencyKey());
@@ -61,7 +63,11 @@ public class OrderFacade {
             paymentId = resp.paymentId();
         }
 
-        return orderPersistenceService.persistAccepted(account.accountId(), cmd, paymentId);
+        OrderInfo info = orderPersistenceService.persistAccepted(account.accountId(), cmd, paymentId);
+        matchingEngine.submit(new MatchCommand(
+                info.id(), info.stockCode(), info.side(), info.type(), info.price(), info.quantity()
+        ));
+        return info;
     }
 
     @Transactional(readOnly = true)
