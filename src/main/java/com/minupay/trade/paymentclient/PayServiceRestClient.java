@@ -64,9 +64,9 @@ public class PayServiceRestClient implements PayServiceClient {
     @Override
     @CircuitBreaker(name = RESILIENCE_INSTANCE, fallbackMethod = "creditWalletFallback")
     @Retry(name = RESILIENCE_INSTANCE)
-    public WalletChargeResponse creditWallet(Long walletId, WalletChargeRequest request) {
+    public WalletChargeResponse creditWallet(Long userId, WalletChargeRequest request) {
         return payServiceRestClient.post()
-                .uri("/wallets/{id}/charge", walletId)
+                .uri("/wallets/users/{userId}/charge", userId)
                 .headers(h -> applyCommon(h, request.idempotencyKey()))
                 .body(request)
                 .retrieve()
@@ -97,7 +97,7 @@ public class PayServiceRestClient implements PayServiceClient {
     }
 
     @SuppressWarnings("unused")
-    private WalletChargeResponse creditWalletFallback(Long walletId, WalletChargeRequest request, Throwable t) {
+    private WalletChargeResponse creditWalletFallback(Long userId, WalletChargeRequest request, Throwable t) {
         throw mapFailure("creditWallet", t);
     }
 

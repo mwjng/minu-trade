@@ -11,15 +11,14 @@ class AccountTest {
 
     @Test
     void 생성_시_ACTIVE_상태() {
-        Account account = Account.create(1001L, 55L);
+        Account account = Account.create(1001L);
         assertThat(account.getStatus()).isEqualTo(AccountStatus.ACTIVE);
         assertThat(account.getUserId()).isEqualTo(1001L);
-        assertThat(account.getWalletId()).isEqualTo(55L);
     }
 
     @Test
     void ACTIVE가_아니면_주문_불가() {
-        Account account = Account.of(1L, 1001L, 55L, AccountStatus.SUSPENDED);
+        Account account = Account.of(1L, 1001L, AccountStatus.SUSPENDED);
 
         assertThatThrownBy(account::ensureCanPlaceOrder)
                 .isInstanceOf(MinuTradeException.class)
@@ -28,7 +27,7 @@ class AccountTest {
 
     @Test
     void 정지_후_재활성화() {
-        Account account = Account.create(1001L, 55L);
+        Account account = Account.create(1001L);
         account.suspend();
         assertThat(account.getStatus()).isEqualTo(AccountStatus.SUSPENDED);
 
@@ -38,7 +37,7 @@ class AccountTest {
 
     @Test
     void 해지된_계좌는_재활성화_불가() {
-        Account account = Account.of(1L, 1001L, 55L, AccountStatus.CLOSED);
+        Account account = Account.of(1L, 1001L, AccountStatus.CLOSED);
 
         assertThatThrownBy(account::reactivate)
                 .isInstanceOf(MinuTradeException.class)
@@ -47,7 +46,7 @@ class AccountTest {
 
     @Test
     void 해지된_계좌는_정지_불가() {
-        Account account = Account.of(1L, 1001L, 55L, AccountStatus.CLOSED);
+        Account account = Account.of(1L, 1001L, AccountStatus.CLOSED);
 
         assertThatThrownBy(account::suspend)
                 .isInstanceOf(MinuTradeException.class)

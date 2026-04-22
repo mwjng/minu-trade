@@ -10,5 +10,5 @@ public interface PayServiceClient {
 
     CancelResponse partialCancel(Long paymentId, PartialCancelRequest request);
 
-    WalletChargeResponse creditWallet(Long walletId, WalletChargeRequest request);
+    WalletChargeResponse creditWallet(Long userId, WalletChargeRequest request);
 }

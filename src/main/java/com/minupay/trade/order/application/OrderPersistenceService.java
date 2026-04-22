@@ -6,6 +6,7 @@ import com.minupay.trade.common.config.KafkaConfig;
 import com.minupay.trade.common.event.EventEnvelope;
 import com.minupay.trade.common.exception.ErrorCode;
 import com.minupay.trade.common.exception.MinuTradeException;
+import com.minupay.trade.common.idempotency.IdempotencyService;
 import com.minupay.trade.common.outbox.Outbox;
 import com.minupay.trade.common.outbox.OutboxRepository;
 import com.minupay.trade.common.trace.TraceIdFilter;
@@ -25,6 +26,7 @@ public class OrderPersistenceService {
 
     private final OrderRepository orderRepository;
     private final OutboxRepository outboxRepository;
+    private final IdempotencyService idempotencyService;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -42,7 +44,13 @@ public class OrderPersistenceService {
         Order saved = orderRepository.save(order);
 
         publishAccepted(saved);
-        return OrderInfo.from(saved);
+        OrderInfo info = OrderInfo.from(saved);
+        try {
+            idempotencyService.complete(cmd.idempotencyKey(), objectMapper.writeValueAsString(info));
+        } catch (JsonProcessingException e) {
+            throw new MinuTradeException(ErrorCode.INTERNAL_ERROR);
+        }
+        return info;
     }
 
     private void publishAccepted(Order order) {

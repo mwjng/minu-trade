@@ -1,9 +1,13 @@
 package com.minupay.trade.order.application;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.minupay.trade.account.application.AccountService;
 import com.minupay.trade.account.application.dto.AccountForOrder;
 import com.minupay.trade.common.exception.ErrorCode;
 import com.minupay.trade.common.exception.MinuTradeException;
+import com.minupay.trade.common.idempotency.IdempotencyKey;
+import com.minupay.trade.common.idempotency.IdempotencyService;
 import com.minupay.trade.order.application.dto.MatchCommand;
 import com.minupay.trade.order.application.dto.OrderInfo;
 import com.minupay.trade.order.application.dto.PlaceOrderCommand;
@@ -18,11 +22,15 @@ import com.minupay.trade.stock.application.StockService;
 import com.minupay.trade.stock.application.dto.StockInfo;
 import com.minupay.trade.stock.domain.StockStatus;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.Optional;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 
 @Service
 @RequiredArgsConstructor
@@ -34,40 +42,49 @@ public class OrderFacade {
     private final OrderRepository orderRepository;
     private final OrderPersistenceService orderPersistenceService;
     private final MatchingEngine matchingEngine;
+    private final IdempotencyService idempotencyService;
+    private final ObjectMapper objectMapper;
 
     public OrderInfo placeOrder(Long userId, PlaceOrderCommand cmd) {
-        Optional<Order> replay = orderRepository.findByIdempotencyKey(cmd.idempotencyKey());
-        if (replay.isPresent()) {
-            return OrderInfo.from(replay.get());
-        }
-
         if (cmd.type() == OrderType.MARKET) {
             throw new MinuTradeException(ErrorCode.ORDER_MARKET_NOT_SUPPORTED);
         }
 
-        AccountForOrder account = accountService.resolveForOrder(userId);
-        StockInfo stock = stockService.getByCode(cmd.stockCode());
-        ensureTradable(stock);
-        ensureTickAligned(cmd.price(), stock.tickSize());
+        String requestHash = hashRequest(userId, cmd);
 
-        Long paymentId = null;
-        if (cmd.side() == OrderSide.BUY) {
-            BigDecimal amount = cmd.price().multiply(BigDecimal.valueOf(cmd.quantity()));
-            ChargeResponse resp = payServiceClient.charge(new ChargeRequest(
-                    userId,
-                    account.walletId(),
-                    amount,
-                    "BUY:" + cmd.stockCode(),
-                    cmd.idempotencyKey()
-            ));
-            paymentId = resp.paymentId();
+        try {
+            idempotencyService.acquireSlot(cmd.idempotencyKey(), requestHash, IdempotencyService.DEFAULT_TTL);
+        } catch (DataIntegrityViolationException e) {
+            return resolveReplay(cmd.idempotencyKey(), requestHash);
         }
 
-        OrderInfo info = orderPersistenceService.persistAccepted(account.accountId(), cmd, paymentId);
-        matchingEngine.submit(new MatchCommand(
-                info.id(), info.stockCode(), info.side(), info.type(), info.price(), info.quantity()
-        ));
-        return info;
+        try {
+            AccountForOrder account = accountService.resolveForOrder(userId);
+            StockInfo stock = stockService.getByCode(cmd.stockCode());
+            ensureTradable(stock);
+            ensureTickAligned(cmd.price(), stock.tickSize());
+
+            Long paymentId = null;
+            if (cmd.side() == OrderSide.BUY) {
+                BigDecimal amount = cmd.price().multiply(BigDecimal.valueOf(cmd.quantity()));
+                ChargeResponse resp = payServiceClient.charge(new ChargeRequest(
+                        userId,
+                        amount,
+                        "BUY:" + cmd.stockCode(),
+                        cmd.idempotencyKey()
+                ));
+                paymentId = resp.paymentId();
+            }
+
+            OrderInfo info = orderPersistenceService.persistAccepted(account.accountId(), cmd, paymentId);
+            matchingEngine.submit(new MatchCommand(
+                    info.id(), info.stockCode(), info.side(), info.type(), info.price(), info.quantity()
+            ));
+            return info;
+        } catch (RuntimeException ex) {
+            idempotencyService.fail(cmd.idempotencyKey());
+            throw ex;
+        }
     }
 
     @Transactional(readOnly = true)
@@ -79,6 +96,38 @@ public class OrderFacade {
             throw new MinuTradeException(ErrorCode.ORDER_FORBIDDEN);
         }
         return OrderInfo.from(order);
+    }
+
+    private OrderInfo resolveReplay(String key, String requestHash) {
+        IdempotencyKey slot = idempotencyService.getSlot(key);
+        if (!slot.matchesRequest(requestHash)) {
+            throw new MinuTradeException(ErrorCode.IDEMPOTENCY_CONFLICT);
+        }
+        return switch (slot.getStatus()) {
+            case COMPLETED -> deserialize(slot.getResponse());
+            case IN_PROGRESS -> throw new MinuTradeException(ErrorCode.IDEMPOTENCY_IN_PROGRESS);
+            case FAILED -> throw new MinuTradeException(ErrorCode.DUPLICATE_REQUEST);
+        };
+    }
+
+    private OrderInfo deserialize(String json) {
+        try {
+            return objectMapper.readValue(json, OrderInfo.class);
+        } catch (JsonProcessingException e) {
+            throw new MinuTradeException(ErrorCode.INTERNAL_ERROR);
+        }
+    }
+
+    private String hashRequest(Long userId, PlaceOrderCommand cmd) {
+        String raw = userId + "|" + cmd.stockCode() + "|" + cmd.side() + "|" + cmd.type()
+                + "|" + (cmd.price() == null ? "" : cmd.price().toPlainString())
+                + "|" + cmd.quantity();
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(md.digest(raw.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new MinuTradeException(ErrorCode.INTERNAL_ERROR);
+        }
     }
 
     private void ensureTradable(StockInfo stock) {

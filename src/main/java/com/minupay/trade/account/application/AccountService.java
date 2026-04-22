@@ -17,11 +17,11 @@ public class AccountService {
     private final AccountRepository accountRepository;
 
     @Transactional
-    public AccountInfo openAccount(Long userId, Long walletId) {
+    public AccountInfo openAccount(Long userId) {
         if (accountRepository.existsByUserId(userId)) {
             throw new MinuTradeException(ErrorCode.ACCOUNT_ALREADY_EXISTS);
         }
-        Account saved = accountRepository.save(Account.create(userId, walletId));
+        Account saved = accountRepository.save(Account.create(userId));
         return AccountInfo.from(saved);
     }
 
@@ -37,6 +37,6 @@ public class AccountService {
         Account account = accountRepository.findByUserId(userId)
                 .orElseThrow(() -> new MinuTradeException(ErrorCode.ACCOUNT_NOT_FOUND));
         account.ensureCanPlaceOrder();
-        return new AccountForOrder(account.getId(), account.getWalletId());
+        return new AccountForOrder(account.getId());
     }
 }

@@ -24,26 +24,22 @@ public class Account extends BaseTimeEntity {
     @Column(nullable = false, unique = true)
     private Long userId;
 
-    @Column(nullable = false)
-    private Long walletId;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private AccountStatus status;
 
-    private Account(Long userId, Long walletId, AccountStatus status) {
+    private Account(Long userId, AccountStatus status) {
         this.userId = userId;
-        this.walletId = walletId;
         this.status = status;
     }
 
-    public static Account create(Long userId, Long walletId) {
-        return new Account(userId, walletId, AccountStatus.ACTIVE);
+    public static Account create(Long userId) {
+        return new Account(userId, AccountStatus.ACTIVE);
     }
 
     /** 테스트 등에서 특정 상태의 Account 가 필요할 때 사용. */
-    public static Account of(Long id, Long userId, Long walletId, AccountStatus status) {
-        Account account = new Account(userId, walletId, status);
+    public static Account of(Long id, Long userId, AccountStatus status) {
+        Account account = new Account(userId, status);
         account.id = id;
         return account;
     }
