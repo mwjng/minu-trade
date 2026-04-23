@@ -2,11 +2,13 @@ package com.minupay.trade.paymentclient;
 
 import com.minupay.trade.common.exception.ErrorCode;
 import com.minupay.trade.common.exception.MinuTradeException;
-import com.minupay.trade.paymentclient.dto.*;
+import com.minupay.trade.paymentclient.dto.WalletTxRequest;
+import com.minupay.trade.paymentclient.dto.WalletTxResponse;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -15,6 +17,8 @@ import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
+import java.util.List;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -22,83 +26,56 @@ public class PayServiceRestClient implements PayServiceClient {
 
     private static final String RESILIENCE_INSTANCE = "payService";
     private static final String IDEMPOTENCY_HEADER = "Idempotency-Key";
+    private static final String INTERNAL_API_KEY_HEADER = "X-Internal-Api-Key";
 
     private final RestClient payServiceRestClient;
 
+    @Value("${pay-service.internal-api-key:}")
+    private String internalApiKey;
+
     @Override
-    @CircuitBreaker(name = RESILIENCE_INSTANCE, fallbackMethod = "chargeFallback")
+    @CircuitBreaker(name = RESILIENCE_INSTANCE, fallbackMethod = "deductFallback")
     @Retry(name = RESILIENCE_INSTANCE)
-    public ChargeResponse charge(ChargeRequest request) {
+    public WalletTxResponse deduct(Long userId, WalletTxRequest request) {
         return payServiceRestClient.post()
-                .uri("/payments")
+                .uri("/api/internal/wallets/{userId}/deduct", userId)
                 .headers(h -> applyCommon(h, request.idempotencyKey()))
                 .body(request)
                 .retrieve()
-                .body(ChargeResponse.class);
+                .body(WalletTxResponse.class);
     }
 
     @Override
-    @CircuitBreaker(name = RESILIENCE_INSTANCE, fallbackMethod = "cancelFallback")
+    @CircuitBreaker(name = RESILIENCE_INSTANCE, fallbackMethod = "creditFallback")
     @Retry(name = RESILIENCE_INSTANCE)
-    public CancelResponse cancel(Long paymentId, CancelRequest request) {
+    public WalletTxResponse credit(Long userId, WalletTxRequest request) {
         return payServiceRestClient.post()
-                .uri("/payments/{id}/cancel", paymentId)
+                .uri("/api/internal/wallets/{userId}/credit", userId)
                 .headers(h -> applyCommon(h, request.idempotencyKey()))
                 .body(request)
                 .retrieve()
-                .body(CancelResponse.class);
-    }
-
-    @Override
-    @CircuitBreaker(name = RESILIENCE_INSTANCE, fallbackMethod = "partialCancelFallback")
-    @Retry(name = RESILIENCE_INSTANCE)
-    public CancelResponse partialCancel(Long paymentId, PartialCancelRequest request) {
-        return payServiceRestClient.post()
-                .uri("/payments/{id}/partial-cancel", paymentId)
-                .headers(h -> applyCommon(h, request.idempotencyKey()))
-                .body(request)
-                .retrieve()
-                .body(CancelResponse.class);
-    }
-
-    @Override
-    @CircuitBreaker(name = RESILIENCE_INSTANCE, fallbackMethod = "creditWalletFallback")
-    @Retry(name = RESILIENCE_INSTANCE)
-    public WalletChargeResponse creditWallet(Long userId, WalletChargeRequest request) {
-        return payServiceRestClient.post()
-                .uri("/wallets/users/{userId}/charge", userId)
-                .headers(h -> applyCommon(h, request.idempotencyKey()))
-                .body(request)
-                .retrieve()
-                .body(WalletChargeResponse.class);
+                .body(WalletTxResponse.class);
     }
 
     private void applyCommon(HttpHeaders headers, String idempotencyKey) {
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setAccept(java.util.List.of(MediaType.APPLICATION_JSON));
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
         if (idempotencyKey != null && !idempotencyKey.isBlank()) {
             headers.set(IDEMPOTENCY_HEADER, idempotencyKey);
+        }
+        if (internalApiKey != null && !internalApiKey.isBlank()) {
+            headers.set(INTERNAL_API_KEY_HEADER, internalApiKey);
         }
     }
 
     @SuppressWarnings("unused")
-    private ChargeResponse chargeFallback(ChargeRequest request, Throwable t) {
-        throw mapFailure("charge", t);
+    private WalletTxResponse deductFallback(Long userId, WalletTxRequest request, Throwable t) {
+        throw mapFailure("deduct", t);
     }
 
     @SuppressWarnings("unused")
-    private CancelResponse cancelFallback(Long paymentId, CancelRequest request, Throwable t) {
-        throw mapFailure("cancel", t);
-    }
-
-    @SuppressWarnings("unused")
-    private CancelResponse partialCancelFallback(Long paymentId, PartialCancelRequest request, Throwable t) {
-        throw mapFailure("partialCancel", t);
-    }
-
-    @SuppressWarnings("unused")
-    private WalletChargeResponse creditWalletFallback(Long userId, WalletChargeRequest request, Throwable t) {
-        throw mapFailure("creditWallet", t);
+    private WalletTxResponse creditFallback(Long userId, WalletTxRequest request, Throwable t) {
+        throw mapFailure("credit", t);
     }
 
     private MinuTradeException mapFailure(String operation, Throwable t) {

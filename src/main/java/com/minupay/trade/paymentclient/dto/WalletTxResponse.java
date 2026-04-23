@@ -2,10 +2,9 @@ package com.minupay.trade.paymentclient.dto;
 
 import java.math.BigDecimal;
 
-public record ChargeResponse(
-        Long paymentId,
+public record WalletTxResponse(
+        Long walletId,
         BigDecimal amount,
-        BigDecimal balanceAfter,
-        String status
+        BigDecimal balanceAfter
 ) {
 }

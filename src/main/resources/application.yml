@@ -16,6 +16,7 @@ jwt:
 
 pay-service:
   base-url: ${PAY_SERVICE_URL:http://localhost:8080}
+  internal-api-key: ${PAY_SERVICE_INTERNAL_API_KEY:dev-internal-key}
 
 kis:
   base-url: ${KIS_BASE_URL:https://openapivts.koreainvestment.com:29443}

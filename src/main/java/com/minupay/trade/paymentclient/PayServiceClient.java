@@ -1,14 +1,11 @@
 package com.minupay.trade.paymentclient;
 
-import com.minupay.trade.paymentclient.dto.*;
+import com.minupay.trade.paymentclient.dto.WalletTxRequest;
+import com.minupay.trade.paymentclient.dto.WalletTxResponse;
 
 public interface PayServiceClient {
 
-    ChargeResponse charge(ChargeRequest request);
+    WalletTxResponse deduct(Long userId, WalletTxRequest request);
 
-    CancelResponse cancel(Long paymentId, CancelRequest request);
-
-    CancelResponse partialCancel(Long paymentId, PartialCancelRequest request);
-
-    WalletChargeResponse creditWallet(Long userId, WalletChargeRequest request);
+    WalletTxResponse credit(Long userId, WalletTxRequest request);
 }

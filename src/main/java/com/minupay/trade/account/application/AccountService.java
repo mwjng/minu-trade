@@ -71,6 +71,20 @@ public class AccountService implements AccountLookup {
         return AccountInfo.from(account);
     }
 
+    @Transactional
+    public AccountInfo applyDeposit(Long userId, BigDecimal amount) {
+        Account account = loadForUpdate(userId);
+        account.deposit(amount);
+        return AccountInfo.from(account);
+    }
+
+    @Transactional
+    public AccountInfo applyWithdraw(Long userId, BigDecimal amount) {
+        Account account = loadForUpdate(userId);
+        account.withdraw(amount);
+        return AccountInfo.from(account);
+    }
+
     private Account loadForUpdate(Long userId) {
         return accountRepository.findByUserIdForUpdate(userId)
                 .orElseThrow(() -> new MinuTradeException(ErrorCode.ACCOUNT_NOT_FOUND));
