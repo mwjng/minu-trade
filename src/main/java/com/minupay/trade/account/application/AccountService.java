@@ -12,9 +12,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class AccountService {
+public class AccountService implements AccountLookup {
 
     private final AccountRepository accountRepository;
+
+    @Override
+    @Transactional(readOnly = true)
+    public Long getUserId(Long accountId) {
+        return accountRepository.findById(accountId)
+                .orElseThrow(() -> new MinuTradeException(ErrorCode.ACCOUNT_NOT_FOUND))
+                .getUserId();
+    }
 
     @Transactional
     public AccountInfo openAccount(Long userId) {

@@ -2,6 +2,7 @@ package com.minupay.trade.order.application;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.minupay.trade.account.application.AccountLookup;
 import com.minupay.trade.common.config.KafkaConfig;
 import com.minupay.trade.common.event.DomainEvent;
 import com.minupay.trade.common.event.EventEnvelope;
@@ -35,6 +36,7 @@ public class MatchingProcessor {
     private final OrderRepository orderRepository;
     private final ExecutionRepository executionRepository;
     private final OutboxRepository outboxRepository;
+    private final AccountLookup accountLookup;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -51,7 +53,10 @@ public class MatchingProcessor {
             Execution execution = executionRepository.save(Execution.of(
                     t.buyOrderId(), t.sellOrderId(), cmd.stockCode(), t.price(), t.quantity()));
 
-            publishTradeExecuted(execution, cmd.stockCode(), traceId);
+            Long buyerUserId = accountLookup.getUserId(buy.getAccountId());
+            Long sellerUserId = accountLookup.getUserId(sell.getAccountId());
+
+            publishTradeExecuted(execution, buyerUserId, sellerUserId, cmd.stockCode(), traceId);
             if (buy.getStatus() == OrderStatus.FILLED) publishOrderFilled(buy, traceId);
             if (sell.getStatus() == OrderStatus.FILLED) publishOrderFilled(sell, traceId);
         }
@@ -68,8 +73,9 @@ public class MatchingProcessor {
                 .orElseThrow(() -> new MinuTradeException(ErrorCode.ORDER_NOT_FOUND));
     }
 
-    private void publishTradeExecuted(Execution execution, String stockCode, String traceId) {
-        TradeExecutedEvent event = TradeExecutedEvent.of(execution, traceId);
+    private void publishTradeExecuted(Execution execution, Long buyerUserId, Long sellerUserId,
+                                      String stockCode, String traceId) {
+        TradeExecutedEvent event = TradeExecutedEvent.of(execution, buyerUserId, sellerUserId, traceId);
         outboxRepository.save(Outbox.create(
                 String.valueOf(execution.getId()),
                 TradeExecutedEvent.AGGREGATE_TYPE,

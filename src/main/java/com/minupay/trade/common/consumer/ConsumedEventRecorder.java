@@ -15,7 +15,7 @@ public class ConsumedEventRecorder {
             return false;
         }
         try {
-            repository.save(ConsumedEventEntity.mark(eventId, consumerGroup, topic));
+            repository.saveAndFlush(ConsumedEventEntity.mark(eventId, consumerGroup, topic));
             return true;
         } catch (DataIntegrityViolationException e) {
             return false;

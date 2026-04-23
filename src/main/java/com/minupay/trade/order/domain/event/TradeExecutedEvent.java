@@ -15,22 +15,26 @@ public class TradeExecutedEvent extends AbstractDomainEvent {
     private final Long executionId;
     private final Long buyOrderId;
     private final Long sellOrderId;
+    private final Long buyerUserId;
+    private final Long sellerUserId;
     private final String stockCode;
     private final BigDecimal price;
     private final int quantity;
 
-    private TradeExecutedEvent(String traceId, Execution execution) {
+    private TradeExecutedEvent(String traceId, Execution execution, Long buyerUserId, Long sellerUserId) {
         super(traceId);
         this.executionId = execution.getId();
         this.buyOrderId = execution.getBuyOrderId();
         this.sellOrderId = execution.getSellOrderId();
+        this.buyerUserId = buyerUserId;
+        this.sellerUserId = sellerUserId;
         this.stockCode = execution.getStockCode();
         this.price = execution.getPrice();
         this.quantity = execution.getQuantity();
     }
 
-    public static TradeExecutedEvent of(Execution execution, String traceId) {
-        return new TradeExecutedEvent(traceId, execution);
+    public static TradeExecutedEvent of(Execution execution, Long buyerUserId, Long sellerUserId, String traceId) {
+        return new TradeExecutedEvent(traceId, execution, buyerUserId, sellerUserId);
     }
 
     @Override public String getEventType()     { return EVENT_TYPE; }
@@ -43,6 +47,8 @@ public class TradeExecutedEvent extends AbstractDomainEvent {
         p.put("executionId", executionId);
         p.put("buyOrderId", buyOrderId);
         p.put("sellOrderId", sellOrderId);
+        p.put("buyerUserId", buyerUserId);
+        p.put("sellerUserId", sellerUserId);
         p.put("stockCode", stockCode);
         p.put("price", price);
         p.put("quantity", quantity);

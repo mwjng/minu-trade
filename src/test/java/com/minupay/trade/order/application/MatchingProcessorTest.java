@@ -2,6 +2,7 @@ package com.minupay.trade.order.application;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.minupay.trade.account.application.AccountLookup;
 import com.minupay.trade.common.config.KafkaConfig;
 import com.minupay.trade.common.outbox.Outbox;
 import com.minupay.trade.common.outbox.OutboxRepository;
@@ -29,6 +30,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -40,13 +42,16 @@ class MatchingProcessorTest {
     @Mock OrderRepository orderRepository;
     @Mock ExecutionRepository executionRepository;
     @Mock OutboxRepository outboxRepository;
+    @Mock AccountLookup accountLookup;
 
     ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     MatchingProcessor processor;
 
     @BeforeEach
     void setup() {
-        processor = new MatchingProcessor(orderRepository, executionRepository, outboxRepository, objectMapper);
+        processor = new MatchingProcessor(orderRepository, executionRepository, outboxRepository,
+                accountLookup, objectMapper);
+        lenient().when(accountLookup.getUserId(any())).thenReturn(777L);
     }
 
     private Order acceptedOrder(Long id, OrderSide side, int qty) {

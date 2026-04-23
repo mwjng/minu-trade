@@ -42,7 +42,13 @@ public enum ErrorCode {
     ORDER_OVERFILL(HttpStatus.UNPROCESSABLE_ENTITY, "O005", "Order fill exceeds quantity"),
     ORDER_TICK_NOT_ALIGNED(HttpStatus.BAD_REQUEST, "O006", "Price is not aligned with tick size"),
     ORDER_MARKET_NOT_SUPPORTED(HttpStatus.BAD_REQUEST, "O007", "Market order is not yet supported"),
-    ORDER_FORBIDDEN(HttpStatus.FORBIDDEN, "O008", "Order does not belong to this account");
+    ORDER_FORBIDDEN(HttpStatus.FORBIDDEN, "O008", "Order does not belong to this account"),
+
+    // Holding
+    HOLDING_NOT_FOUND(HttpStatus.NOT_FOUND, "H001", "Holding not found"),
+    HOLDING_INSUFFICIENT(HttpStatus.UNPROCESSABLE_ENTITY, "H002", "Holding quantity is insufficient"),
+    HOLDING_INVALID_QUANTITY(HttpStatus.BAD_REQUEST, "H003", "Invalid holding quantity"),
+    HOLDING_INVALID_PRICE(HttpStatus.BAD_REQUEST, "H004", "Invalid holding price");
 
     private final HttpStatus httpStatus;
     private final String code;
