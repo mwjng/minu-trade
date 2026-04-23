@@ -24,11 +24,10 @@ class OrderTest {
     }
 
     @Test
-    void accept_후_ACCEPTED_paymentId_저장() {
+    void accept_후_ACCEPTED() {
         Order order = sampleLimitBuy();
-        order.accept(42L);
+        order.accept();
         assertThat(order.getStatus()).isEqualTo(OrderStatus.ACCEPTED);
-        assertThat(order.getPaymentId()).isEqualTo(42L);
     }
 
     @Test
@@ -63,7 +62,7 @@ class OrderTest {
     @Test
     void 부분체결_후_PARTIALLY_FILLED() {
         Order order = sampleLimitBuy();
-        order.accept(1L);
+        order.accept();
         order.addFill(4);
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PARTIALLY_FILLED);
         assertThat(order.getFilledQuantity()).isEqualTo(4);
@@ -73,7 +72,7 @@ class OrderTest {
     @Test
     void 전량체결_후_FILLED() {
         Order order = sampleLimitBuy();
-        order.accept(1L);
+        order.accept();
         order.addFill(10);
         assertThat(order.getStatus()).isEqualTo(OrderStatus.FILLED);
         assertThat(order.remainingQuantity()).isZero();
@@ -82,7 +81,7 @@ class OrderTest {
     @Test
     void 초과체결_시도_시_예외() {
         Order order = sampleLimitBuy();
-        order.accept(1L);
+        order.accept();
         order.addFill(8);
         assertThatThrownBy(() -> order.addFill(3))
                 .isInstanceOf(MinuTradeException.class)
@@ -92,7 +91,7 @@ class OrderTest {
     @Test
     void 체결된_주문은_취소_불가() {
         Order order = sampleLimitBuy();
-        order.accept(1L);
+        order.accept();
         order.addFill(10);
         assertThatThrownBy(order::cancel)
                 .isInstanceOf(MinuTradeException.class)

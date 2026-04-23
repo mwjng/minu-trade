@@ -57,7 +57,7 @@ class MatchingProcessorTest {
     private Order acceptedOrder(Long id, OrderSide side, int qty) {
         Order order = Order.place(1L, "005930", side, OrderType.LIMIT,
                 new BigDecimal("70000"), qty, "idem-" + id);
-        order.accept(99L);
+        order.accept();
         try {
             var f = Order.class.getDeclaredField("id");
             f.setAccessible(true);

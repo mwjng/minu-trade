@@ -62,32 +62,68 @@ class HoldingServiceTest {
     }
 
     @Test
-    void applySell_전량_매도면_레코드_삭제() {
+    void reserveSell_보유있으면_예약수량_증가() {
         Holding existing = Holding.openForBuy(1L, "005930", 10, new BigDecimal("70000"));
         when(holdingRepository.findByUserIdAndStockCode(1L, "005930")).thenReturn(Optional.of(existing));
 
-        HoldingInfo info = service.applySell(1L, "005930", 10);
+        HoldingInfo info = service.reserveSell(1L, "005930", 3);
 
-        assertThat(info.quantity()).isEqualTo(0);
+        assertThat(info.quantity()).isEqualTo(10);
+        assertThat(info.reservedQuantity()).isEqualTo(3);
+        assertThat(info.availableQuantity()).isEqualTo(7);
+    }
+
+    @Test
+    void reserveSell_보유없으면_HOLDING_NOT_FOUND() {
+        when(holdingRepository.findByUserIdAndStockCode(1L, "005930")).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.reserveSell(1L, "005930", 1))
+                .isInstanceOf(MinuTradeException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.HOLDING_NOT_FOUND);
+    }
+
+    @Test
+    void releaseSell_예약_해제() {
+        Holding existing = Holding.openForBuy(1L, "005930", 10, new BigDecimal("70000"));
+        existing.reserve(5);
+        when(holdingRepository.findByUserIdAndStockCode(1L, "005930")).thenReturn(Optional.of(existing));
+
+        HoldingInfo info = service.releaseSell(1L, "005930", 2);
+
+        assertThat(info.reservedQuantity()).isEqualTo(3);
+        assertThat(info.availableQuantity()).isEqualTo(7);
+    }
+
+    @Test
+    void settleSell_전량_매도면_레코드_삭제() {
+        Holding existing = Holding.openForBuy(1L, "005930", 10, new BigDecimal("70000"));
+        existing.reserve(10);
+        when(holdingRepository.findByUserIdAndStockCode(1L, "005930")).thenReturn(Optional.of(existing));
+
+        HoldingInfo info = service.settleSell(1L, "005930", 10);
+
+        assertThat(info.quantity()).isZero();
         verify(holdingRepository).delete(existing);
     }
 
     @Test
-    void applySell_부분_매도면_레코드_유지() {
+    void settleSell_부분_매도면_레코드_유지() {
         Holding existing = Holding.openForBuy(1L, "005930", 10, new BigDecimal("70000"));
+        existing.reserve(5);
         when(holdingRepository.findByUserIdAndStockCode(1L, "005930")).thenReturn(Optional.of(existing));
 
-        HoldingInfo info = service.applySell(1L, "005930", 3);
+        HoldingInfo info = service.settleSell(1L, "005930", 3);
 
         assertThat(info.quantity()).isEqualTo(7);
+        assertThat(info.reservedQuantity()).isEqualTo(2);
         verify(holdingRepository, never()).delete(any());
     }
 
     @Test
-    void applySell_보유없으면_HOLDING_NOT_FOUND() {
+    void settleSell_보유없으면_HOLDING_NOT_FOUND() {
         when(holdingRepository.findByUserIdAndStockCode(1L, "005930")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.applySell(1L, "005930", 1))
+        assertThatThrownBy(() -> service.settleSell(1L, "005930", 1))
                 .isInstanceOf(MinuTradeException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.HOLDING_NOT_FOUND);
     }

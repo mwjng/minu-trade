@@ -21,7 +21,6 @@ public class OrderAcceptedEvent extends AbstractDomainEvent {
     private final OrderType type;
     private final BigDecimal price;
     private final int quantity;
-    private final Long paymentId;
 
     private OrderAcceptedEvent(String traceId, Order order) {
         super(traceId);
@@ -32,7 +31,6 @@ public class OrderAcceptedEvent extends AbstractDomainEvent {
         this.type = order.getType();
         this.price = order.getPrice();
         this.quantity = order.getQuantity();
-        this.paymentId = order.getPaymentId();
     }
 
     public static OrderAcceptedEvent of(Order order, String traceId) {
@@ -53,7 +51,6 @@ public class OrderAcceptedEvent extends AbstractDomainEvent {
         p.put("type", type.name());
         p.put("price", price);
         p.put("quantity", quantity);
-        p.put("paymentId", paymentId);
         return p;
     }
 }

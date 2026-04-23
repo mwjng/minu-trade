@@ -16,8 +16,7 @@ public record OrderInfo(
         BigDecimal price,
         int quantity,
         int filledQuantity,
-        OrderStatus status,
-        Long paymentId
+        OrderStatus status
 ) {
     public static OrderInfo from(Order order) {
         return new OrderInfo(
@@ -29,8 +28,7 @@ public record OrderInfo(
                 order.getPrice(),
                 order.getQuantity(),
                 order.getFilledQuantity(),
-                order.getStatus(),
-                order.getPaymentId()
+                order.getStatus()
         );
     }
 }

@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+
 @Service
 @RequiredArgsConstructor
 public class AccountService implements AccountLookup {
@@ -46,5 +48,24 @@ public class AccountService implements AccountLookup {
                 .orElseThrow(() -> new MinuTradeException(ErrorCode.ACCOUNT_NOT_FOUND));
         account.ensureCanPlaceOrder();
         return new AccountForOrder(account.getId());
+    }
+
+    @Transactional
+    public AccountInfo settleBuy(Long userId, BigDecimal amount) {
+        Account account = loadForUpdate(userId);
+        account.settleBuy(amount);
+        return AccountInfo.from(account);
+    }
+
+    @Transactional
+    public AccountInfo settleSell(Long userId, BigDecimal amount) {
+        Account account = loadForUpdate(userId);
+        account.settleSell(amount);
+        return AccountInfo.from(account);
+    }
+
+    private Account loadForUpdate(Long userId) {
+        return accountRepository.findByUserIdForUpdate(userId)
+                .orElseThrow(() -> new MinuTradeException(ErrorCode.ACCOUNT_NOT_FOUND));
     }
 }

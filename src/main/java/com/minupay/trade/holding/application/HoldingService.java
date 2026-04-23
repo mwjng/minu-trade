@@ -32,10 +32,23 @@ public class HoldingService {
     }
 
     @Transactional
-    public HoldingInfo applySell(Long userId, String stockCode, int quantity) {
-        Holding holding = holdingRepository.findByUserIdAndStockCode(userId, stockCode)
-                .orElseThrow(() -> new MinuTradeException(ErrorCode.HOLDING_NOT_FOUND));
-        holding.sell(quantity);
+    public HoldingInfo reserveSell(Long userId, String stockCode, int quantity) {
+        Holding holding = loadHolding(userId, stockCode);
+        holding.reserve(quantity);
+        return HoldingInfo.from(holding);
+    }
+
+    @Transactional
+    public HoldingInfo releaseSell(Long userId, String stockCode, int quantity) {
+        Holding holding = loadHolding(userId, stockCode);
+        holding.releaseReserve(quantity);
+        return HoldingInfo.from(holding);
+    }
+
+    @Transactional
+    public HoldingInfo settleSell(Long userId, String stockCode, int quantity) {
+        Holding holding = loadHolding(userId, stockCode);
+        holding.settleSell(quantity);
         HoldingInfo snapshot = HoldingInfo.from(holding);
         if (holding.isEmpty()) {
             holdingRepository.delete(holding);
@@ -48,5 +61,10 @@ public class HoldingService {
         return holdingRepository.findAllByUserIdOrderByStockCodeAsc(userId).stream()
                 .map(HoldingInfo::from)
                 .toList();
+    }
+
+    private Holding loadHolding(Long userId, String stockCode) {
+        return holdingRepository.findByUserIdAndStockCode(userId, stockCode)
+                .orElseThrow(() -> new MinuTradeException(ErrorCode.HOLDING_NOT_FOUND));
     }
 }

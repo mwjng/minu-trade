@@ -13,11 +13,7 @@ import com.minupay.trade.order.application.dto.OrderInfo;
 import com.minupay.trade.order.application.dto.PlaceOrderCommand;
 import com.minupay.trade.order.domain.Order;
 import com.minupay.trade.order.domain.OrderRepository;
-import com.minupay.trade.order.domain.OrderSide;
 import com.minupay.trade.order.domain.OrderType;
-import com.minupay.trade.paymentclient.PayServiceClient;
-import com.minupay.trade.paymentclient.dto.ChargeRequest;
-import com.minupay.trade.paymentclient.dto.ChargeResponse;
 import com.minupay.trade.stock.application.StockService;
 import com.minupay.trade.stock.application.dto.StockInfo;
 import com.minupay.trade.stock.domain.StockStatus;
@@ -38,7 +34,6 @@ public class OrderFacade {
 
     private final AccountService accountService;
     private final StockService stockService;
-    private final PayServiceClient payServiceClient;
     private final OrderRepository orderRepository;
     private final OrderPersistenceService orderPersistenceService;
     private final MatchingEngine matchingEngine;
@@ -59,24 +54,11 @@ public class OrderFacade {
         }
 
         try {
-            AccountForOrder account = accountService.resolveForOrder(userId);
             StockInfo stock = stockService.getByCode(cmd.stockCode());
             ensureTradable(stock);
             ensureTickAligned(cmd.price(), stock.tickSize());
 
-            Long paymentId = null;
-            if (cmd.side() == OrderSide.BUY) {
-                BigDecimal amount = cmd.price().multiply(BigDecimal.valueOf(cmd.quantity()));
-                ChargeResponse resp = payServiceClient.charge(new ChargeRequest(
-                        userId,
-                        amount,
-                        "BUY:" + cmd.stockCode(),
-                        cmd.idempotencyKey()
-                ));
-                paymentId = resp.paymentId();
-            }
-
-            OrderInfo info = orderPersistenceService.persistAccepted(account.accountId(), cmd, paymentId);
+            OrderInfo info = orderPersistenceService.persistAccepted(userId, cmd);
             matchingEngine.submit(new MatchCommand(
                     info.id(), info.stockCode(), info.side(), info.type(), info.price(), info.quantity()
             ));

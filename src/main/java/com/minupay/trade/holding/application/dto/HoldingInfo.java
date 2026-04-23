@@ -9,6 +9,8 @@ public record HoldingInfo(
         Long userId,
         String stockCode,
         int quantity,
+        int reservedQuantity,
+        int availableQuantity,
         BigDecimal avgPrice
 ) {
     public static HoldingInfo from(Holding holding) {
@@ -17,6 +19,8 @@ public record HoldingInfo(
                 holding.getUserId(),
                 holding.getStockCode(),
                 holding.getQuantity(),
+                holding.getReservedQuantity(),
+                holding.availableQuantity(),
                 holding.getAvgPrice()
         );
     }

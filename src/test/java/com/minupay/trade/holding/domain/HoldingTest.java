@@ -12,10 +12,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class HoldingTest {
 
     @Test
-    void openForBuy_초기수량_평단_세팅() {
+    void openForBuy_초기수량_평단_세팅_예약수량_0() {
         Holding h = Holding.openForBuy(1L, "005930", 10, new BigDecimal("70000"));
 
         assertThat(h.getQuantity()).isEqualTo(10);
+        assertThat(h.getReservedQuantity()).isZero();
+        assertThat(h.availableQuantity()).isEqualTo(10);
         assertThat(h.getAvgPrice()).isEqualByComparingTo("70000");
         assertThat(h.getUserId()).isEqualTo(1L);
         assertThat(h.getStockCode()).isEqualTo("005930");
@@ -38,37 +40,84 @@ class HoldingTest {
         h.buy(4, new BigDecimal("12345"));
 
         assertThat(h.getQuantity()).isEqualTo(7);
-        // (3*10000 + 4*12345) / 7 = 79380/7 = 11340.0000
         assertThat(h.getAvgPrice()).isEqualByComparingTo("11340.0000");
     }
 
     @Test
-    void sell_수량_차감() {
+    void reserve_가용수량에서_예약() {
         Holding h = Holding.openForBuy(1L, "005930", 10, new BigDecimal("70000"));
 
-        h.sell(3);
+        h.reserve(3);
+
+        assertThat(h.getQuantity()).isEqualTo(10);
+        assertThat(h.getReservedQuantity()).isEqualTo(3);
+        assertThat(h.availableQuantity()).isEqualTo(7);
+    }
+
+    @Test
+    void reserve_가용수량_부족시_예외() {
+        Holding h = Holding.openForBuy(1L, "005930", 10, new BigDecimal("70000"));
+        h.reserve(7);
+
+        assertThatThrownBy(() -> h.reserve(4))
+                .isInstanceOf(MinuTradeException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.HOLDING_INSUFFICIENT);
+    }
+
+    @Test
+    void releaseReserve_예약_해제() {
+        Holding h = Holding.openForBuy(1L, "005930", 10, new BigDecimal("70000"));
+        h.reserve(5);
+
+        h.releaseReserve(2);
+
+        assertThat(h.getReservedQuantity()).isEqualTo(3);
+        assertThat(h.availableQuantity()).isEqualTo(7);
+    }
+
+    @Test
+    void releaseReserve_예약보다_크면_예외() {
+        Holding h = Holding.openForBuy(1L, "005930", 10, new BigDecimal("70000"));
+        h.reserve(3);
+
+        assertThatThrownBy(() -> h.releaseReserve(4))
+                .isInstanceOf(MinuTradeException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.HOLDING_INSUFFICIENT_RESERVED);
+    }
+
+    @Test
+    void settleSell_예약과_보유수량_동시_차감() {
+        Holding h = Holding.openForBuy(1L, "005930", 10, new BigDecimal("70000"));
+        h.reserve(5);
+
+        h.settleSell(3);
 
         assertThat(h.getQuantity()).isEqualTo(7);
-        assertThat(h.getAvgPrice()).isEqualByComparingTo("70000");
+        assertThat(h.getReservedQuantity()).isEqualTo(2);
+        assertThat(h.availableQuantity()).isEqualTo(5);
         assertThat(h.isEmpty()).isFalse();
     }
 
     @Test
-    void sell_전량_후_isEmpty() {
+    void settleSell_예약된_전량_소진_후_isEmpty() {
         Holding h = Holding.openForBuy(1L, "005930", 10, new BigDecimal("70000"));
+        h.reserve(10);
 
-        h.sell(10);
+        h.settleSell(10);
 
+        assertThat(h.getQuantity()).isZero();
+        assertThat(h.getReservedQuantity()).isZero();
         assertThat(h.isEmpty()).isTrue();
     }
 
     @Test
-    void sell_보유보다_많이_요청하면_예외() {
+    void settleSell_예약보다_크면_예외() {
         Holding h = Holding.openForBuy(1L, "005930", 10, new BigDecimal("70000"));
+        h.reserve(3);
 
-        assertThatThrownBy(() -> h.sell(11))
+        assertThatThrownBy(() -> h.settleSell(4))
                 .isInstanceOf(MinuTradeException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.HOLDING_INSUFFICIENT);
+                .extracting("errorCode").isEqualTo(ErrorCode.HOLDING_INSUFFICIENT_RESERVED);
     }
 
     @Test

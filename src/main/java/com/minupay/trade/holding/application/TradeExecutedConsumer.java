@@ -77,7 +77,7 @@ public class TradeExecutedConsumer {
         HoldingInfo buyer = holdingService.applyBuy(buyerUserId, stockCode, quantity, price);
         publishHoldingUpdated(buyer, HoldingUpdatedEvent.Reason.BUY, traceId);
 
-        HoldingInfo seller = holdingService.applySell(sellerUserId, stockCode, quantity);
+        HoldingInfo seller = holdingService.settleSell(sellerUserId, stockCode, quantity);
         publishHoldingUpdated(seller, HoldingUpdatedEvent.Reason.SELL, traceId);
     }
 

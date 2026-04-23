@@ -3,7 +3,15 @@ package com.minupay.trade.holding.domain;
 import com.minupay.trade.common.entity.BaseTimeEntity;
 import com.minupay.trade.common.exception.ErrorCode;
 import com.minupay.trade.common.exception.MinuTradeException;
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -36,6 +44,9 @@ public class Holding extends BaseTimeEntity {
     @Column(nullable = false)
     private int quantity;
 
+    @Column(nullable = false)
+    private int reservedQuantity;
+
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal avgPrice;
 
@@ -46,6 +57,7 @@ public class Holding extends BaseTimeEntity {
         this.userId = userId;
         this.stockCode = stockCode;
         this.quantity = quantity;
+        this.reservedQuantity = 0;
         this.avgPrice = avgPrice;
     }
 
@@ -53,6 +65,10 @@ public class Holding extends BaseTimeEntity {
         ensurePositiveQuantity(quantity);
         ensurePositivePrice(price);
         return new Holding(userId, stockCode, quantity, price.setScale(AVG_PRICE_SCALE, RoundingMode.HALF_UP));
+    }
+
+    public int availableQuantity() {
+        return quantity - reservedQuantity;
     }
 
     public void buy(int quantity, BigDecimal price) {
@@ -66,16 +82,33 @@ public class Holding extends BaseTimeEntity {
         this.quantity = newQuantity;
     }
 
-    public void sell(int quantity) {
+    public void reserve(int quantity) {
         ensurePositiveQuantity(quantity);
-        if (quantity > this.quantity) {
+        if (availableQuantity() < quantity) {
             throw new MinuTradeException(ErrorCode.HOLDING_INSUFFICIENT);
         }
+        this.reservedQuantity += quantity;
+    }
+
+    public void releaseReserve(int quantity) {
+        ensurePositiveQuantity(quantity);
+        if (reservedQuantity < quantity) {
+            throw new MinuTradeException(ErrorCode.HOLDING_INSUFFICIENT_RESERVED);
+        }
+        this.reservedQuantity -= quantity;
+    }
+
+    public void settleSell(int quantity) {
+        ensurePositiveQuantity(quantity);
+        if (reservedQuantity < quantity) {
+            throw new MinuTradeException(ErrorCode.HOLDING_INSUFFICIENT_RESERVED);
+        }
+        this.reservedQuantity -= quantity;
         this.quantity -= quantity;
     }
 
     public boolean isEmpty() {
-        return quantity == 0;
+        return quantity == 0 && reservedQuantity == 0;
     }
 
     private static void ensurePositiveQuantity(int quantity) {

@@ -69,14 +69,14 @@ class TradeExecutedConsumerTest {
     void 최초_수신_시_buy_sell_양쪽_반영_그리고_holding_updated_2건_발행() throws Exception {
         when(consumedEventRecorder.markIfAbsent(anyString(), anyString(), anyString())).thenReturn(true);
         when(holdingService.applyBuy(eq(10L), eq("005930"), anyInt(), any()))
-                .thenReturn(new HoldingInfo(1L, 10L, "005930", 10, new BigDecimal("70000")));
-        when(holdingService.applySell(eq(20L), eq("005930"), anyInt()))
-                .thenReturn(new HoldingInfo(2L, 20L, "005930", 0, new BigDecimal("60000")));
+                .thenReturn(new HoldingInfo(1L, 10L, "005930", 10, 0, 10, new BigDecimal("70000")));
+        when(holdingService.settleSell(eq(20L), eq("005930"), anyInt()))
+                .thenReturn(new HoldingInfo(2L, 20L, "005930", 0, 0, 0, new BigDecimal("60000")));
 
         consumer.onMessage(tradeRecord(10L, 20L), ack);
 
         verify(holdingService).applyBuy(10L, "005930", 10, new BigDecimal("70000"));
-        verify(holdingService).applySell(20L, "005930", 10);
+        verify(holdingService).settleSell(20L, "005930", 10);
 
         ArgumentCaptor<Outbox> captor = ArgumentCaptor.forClass(Outbox.class);
         verify(outboxRepository, times(2)).save(captor.capture());
@@ -95,7 +95,7 @@ class TradeExecutedConsumerTest {
         consumer.onMessage(tradeRecord(10L, 20L), ack);
 
         verify(holdingService, never()).applyBuy(anyLong(), anyString(), anyInt(), any());
-        verify(holdingService, never()).applySell(anyLong(), anyString(), anyInt());
+        verify(holdingService, never()).settleSell(anyLong(), anyString(), anyInt());
         verify(outboxRepository, never()).save(any());
         verify(ack).acknowledge();
     }

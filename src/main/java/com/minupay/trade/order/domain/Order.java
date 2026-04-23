@@ -57,8 +57,6 @@ public class Order extends BaseTimeEntity {
     @Column(nullable = false, length = 128)
     private String idempotencyKey;
 
-    private Long paymentId;
-
     private Order(Long accountId, String stockCode, OrderSide side, OrderType type,
                   BigDecimal price, int quantity, String idempotencyKey) {
         this.accountId = accountId;
@@ -90,12 +88,11 @@ public class Order extends BaseTimeEntity {
         return new Order(accountId, stockCode, side, type, price, quantity, idempotencyKey);
     }
 
-    public void accept(Long paymentId) {
+    public void accept() {
         if (status != OrderStatus.PENDING) {
             throw new MinuTradeException(ErrorCode.ORDER_INVALID_STATE);
         }
         this.status = OrderStatus.ACCEPTED;
-        this.paymentId = paymentId;
     }
 
     public void reject() {

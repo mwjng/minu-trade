@@ -19,6 +19,9 @@ public enum ErrorCode {
     ACCOUNT_ALREADY_EXISTS(HttpStatus.CONFLICT, "AC002", "Account already exists for user"),
     ACCOUNT_NOT_ACTIVE(HttpStatus.UNPROCESSABLE_ENTITY, "AC003", "Account is not active"),
     ACCOUNT_CLOSED(HttpStatus.UNPROCESSABLE_ENTITY, "AC004", "Account is closed"),
+    ACCOUNT_INSUFFICIENT_BALANCE(HttpStatus.UNPROCESSABLE_ENTITY, "AC005", "Insufficient account balance"),
+    ACCOUNT_INSUFFICIENT_RESERVED(HttpStatus.UNPROCESSABLE_ENTITY, "AC006", "Reserved balance is insufficient"),
+    ACCOUNT_INVALID_AMOUNT(HttpStatus.BAD_REQUEST, "AC007", "Invalid account amount"),
 
     // Stock
     STOCK_NOT_FOUND(HttpStatus.NOT_FOUND, "ST001", "Stock not found"),
@@ -48,7 +51,8 @@ public enum ErrorCode {
     HOLDING_NOT_FOUND(HttpStatus.NOT_FOUND, "H001", "Holding not found"),
     HOLDING_INSUFFICIENT(HttpStatus.UNPROCESSABLE_ENTITY, "H002", "Holding quantity is insufficient"),
     HOLDING_INVALID_QUANTITY(HttpStatus.BAD_REQUEST, "H003", "Invalid holding quantity"),
-    HOLDING_INVALID_PRICE(HttpStatus.BAD_REQUEST, "H004", "Invalid holding price");
+    HOLDING_INVALID_PRICE(HttpStatus.BAD_REQUEST, "H004", "Invalid holding price"),
+    HOLDING_INSUFFICIENT_RESERVED(HttpStatus.UNPROCESSABLE_ENTITY, "H005", "Reserved holding quantity is insufficient");
 
     private final HttpStatus httpStatus;
     private final String code;
