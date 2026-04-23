@@ -8,6 +8,7 @@ import com.minupay.trade.common.exception.ErrorCode;
 import com.minupay.trade.common.exception.MinuTradeException;
 import com.minupay.trade.common.idempotency.IdempotencyKey;
 import com.minupay.trade.common.idempotency.IdempotencyService;
+import com.minupay.trade.common.money.Money;
 import com.minupay.trade.order.application.dto.CancelOrderCommand;
 import com.minupay.trade.order.application.dto.MatchCommand;
 import com.minupay.trade.order.application.dto.OrderInfo;
@@ -65,8 +66,9 @@ public class OrderFacade {
             ensureTickAligned(cmd.price(), stock.tickSize());
 
             OrderInfo info = orderPersistenceService.persistAccepted(userId, cmd);
+            Money matchPrice = info.price() == null ? null : Money.of(info.price());
             matchingEngine.submit(new MatchCommand(
-                    info.id(), info.stockCode(), info.side(), info.type(), info.price(), info.quantity()
+                    info.id(), info.stockCode(), info.side(), info.type(), matchPrice, info.quantity()
             ));
             return info;
         } catch (RuntimeException ex) {

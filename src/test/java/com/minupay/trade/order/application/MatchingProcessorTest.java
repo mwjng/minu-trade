@@ -5,6 +5,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.minupay.trade.account.application.AccountLookup;
 import com.minupay.trade.account.application.AccountService;
 import com.minupay.trade.common.config.KafkaConfig;
+import com.minupay.trade.common.money.Money;
 import com.minupay.trade.common.outbox.Outbox;
 import com.minupay.trade.common.outbox.OutboxRepository;
 import com.minupay.trade.common.exception.ErrorCode;
@@ -25,7 +26,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -56,6 +56,8 @@ class MatchingProcessorTest {
     ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
     MatchingProcessor processor;
 
+    private static final Money PRICE = Money.of(new BigDecimal("70000"));
+
     @BeforeEach
     void setup() {
         processor = new MatchingProcessor(orderRepository, executionRepository, outboxRepository,
@@ -65,7 +67,7 @@ class MatchingProcessorTest {
 
     private Order acceptedOrder(Long id, OrderSide side, int qty) {
         Order order = Order.place(1L, "005930", side, OrderType.LIMIT,
-                new BigDecimal("70000"), qty, "idem-" + id);
+                PRICE, qty, "idem-" + id);
         order.accept();
         try {
             var f = Order.class.getDeclaredField("id");
@@ -81,7 +83,7 @@ class MatchingProcessorTest {
     void 체결시_Execution_저장_Outbox_발행() {
         OrderBook book = new OrderBook("005930");
         Order seller = acceptedOrder(1L, OrderSide.SELL, 10);
-        book.match(seller.getId(), OrderSide.SELL, new BigDecimal("70000"), 10);
+        book.match(seller.getId(), OrderSide.SELL, PRICE, 10);
 
         Order buyer = acceptedOrder(2L, OrderSide.BUY, 10);
         when(orderRepository.findById(1L)).thenReturn(Optional.of(seller));
@@ -95,7 +97,7 @@ class MatchingProcessorTest {
         });
 
         MatchCommand cmd = new MatchCommand(2L, "005930", OrderSide.BUY, OrderType.LIMIT,
-                new BigDecimal("70000"), 10);
+                PRICE, 10);
 
         MatchResult result = processor.process(book, cmd);
 
@@ -120,7 +122,7 @@ class MatchingProcessorTest {
     void 부분체결은_OrderFilled_미발행() {
         OrderBook book = new OrderBook("005930");
         Order seller = acceptedOrder(1L, OrderSide.SELL, 4);
-        book.match(seller.getId(), OrderSide.SELL, new BigDecimal("70000"), 4);
+        book.match(seller.getId(), OrderSide.SELL, PRICE, 4);
 
         Order buyer = acceptedOrder(2L, OrderSide.BUY, 10);
         when(orderRepository.findById(1L)).thenReturn(Optional.of(seller));
@@ -128,7 +130,7 @@ class MatchingProcessorTest {
         when(executionRepository.save(any(Execution.class))).thenAnswer(inv -> inv.getArgument(0));
 
         MatchCommand cmd = new MatchCommand(2L, "005930", OrderSide.BUY, OrderType.LIMIT,
-                new BigDecimal("70000"), 10);
+                PRICE, 10);
 
         processor.process(book, cmd);
 
@@ -148,7 +150,7 @@ class MatchingProcessorTest {
         OrderBook book = new OrderBook("005930");
 
         MatchCommand cmd = new MatchCommand(1L, "005930", OrderSide.BUY, OrderType.LIMIT,
-                new BigDecimal("70000"), 10);
+                PRICE, 10);
 
         MatchResult result = processor.process(book, cmd);
 
@@ -161,12 +163,12 @@ class MatchingProcessorTest {
     void 매수_취소_시_잔여금액_releaseReserve_및_OrderCancelled_발행() {
         OrderBook book = new OrderBook("005930");
         Order buyer = acceptedOrder(10L, OrderSide.BUY, 10);
-        book.match(buyer.getId(), OrderSide.BUY, new BigDecimal("70000"), 10);
+        book.match(buyer.getId(), OrderSide.BUY, PRICE, 10);
         when(orderRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(buyer));
 
         processor.cancel(book, new CancelOrderCommand(10L, "005930", 777L));
 
-        verify(accountService).releaseReserve(eq(777L), eq(new BigDecimal("700000")));
+        verify(accountService).releaseReserve(eq(777L), eq(Money.of(new BigDecimal("700000"))));
         verify(holdingService, never()).releaseSell(any(), any(), any(Integer.class));
 
         ArgumentCaptor<Outbox> captor = ArgumentCaptor.forClass(Outbox.class);
@@ -180,7 +182,7 @@ class MatchingProcessorTest {
     void 매도_취소_시_보유주식_releaseSell_호출() {
         OrderBook book = new OrderBook("005930");
         Order seller = acceptedOrder(20L, OrderSide.SELL, 5);
-        book.match(seller.getId(), OrderSide.SELL, new BigDecimal("70000"), 5);
+        book.match(seller.getId(), OrderSide.SELL, PRICE, 5);
         when(orderRepository.findByIdForUpdate(20L)).thenReturn(Optional.of(seller));
 
         processor.cancel(book, new CancelOrderCommand(20L, "005930", 777L));
@@ -196,12 +198,12 @@ class MatchingProcessorTest {
         OrderBook book = new OrderBook("005930");
         Order buyer = acceptedOrder(30L, OrderSide.BUY, 10);
         buyer.addFill(3);
-        book.match(buyer.getId(), OrderSide.BUY, new BigDecimal("70000"), 7);
+        book.match(buyer.getId(), OrderSide.BUY, PRICE, 7);
         when(orderRepository.findByIdForUpdate(30L)).thenReturn(Optional.of(buyer));
 
         processor.cancel(book, new CancelOrderCommand(30L, "005930", 777L));
 
-        verify(accountService).releaseReserve(eq(777L), eq(new BigDecimal("490000")));
+        verify(accountService).releaseReserve(eq(777L), eq(Money.of(new BigDecimal("490000"))));
         assertThat(buyer.getStatus()).isEqualTo(OrderStatus.CANCELLED);
     }
 

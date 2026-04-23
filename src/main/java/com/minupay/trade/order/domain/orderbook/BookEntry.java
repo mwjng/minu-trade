@@ -1,20 +1,19 @@
 package com.minupay.trade.order.domain.orderbook;
 
+import com.minupay.trade.common.money.Money;
 import com.minupay.trade.order.domain.OrderSide;
 import lombok.Getter;
-
-import java.math.BigDecimal;
 
 @Getter
 public class BookEntry {
 
     private final long orderId;
     private final OrderSide side;
-    private final BigDecimal price;
+    private final Money price;
     private final long sequence;
     private int remainingQuantity;
 
-    public BookEntry(long orderId, OrderSide side, BigDecimal price, int remainingQuantity, long sequence) {
+    public BookEntry(long orderId, OrderSide side, Money price, int remainingQuantity, long sequence) {
         this.orderId = orderId;
         this.side = side;
         this.price = price;

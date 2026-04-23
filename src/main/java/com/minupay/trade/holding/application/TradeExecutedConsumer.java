@@ -9,6 +9,7 @@ import com.minupay.trade.common.event.DomainEvent;
 import com.minupay.trade.common.event.EventEnvelope;
 import com.minupay.trade.common.exception.ErrorCode;
 import com.minupay.trade.common.exception.MinuTradeException;
+import com.minupay.trade.common.money.Money;
 import com.minupay.trade.common.outbox.Outbox;
 import com.minupay.trade.common.outbox.OutboxRepository;
 import com.minupay.trade.common.trace.TraceIdFilter;
@@ -72,7 +73,7 @@ public class TradeExecutedConsumer {
         Long sellerUserId = payload.path("sellerUserId").asLong();
         String stockCode = payload.path("stockCode").asText();
         int quantity = payload.path("quantity").asInt();
-        BigDecimal price = new BigDecimal(payload.path("price").asText());
+        Money price = Money.of(new BigDecimal(payload.path("price").asText()));
 
         HoldingInfo buyer = holdingService.applyBuy(buyerUserId, stockCode, quantity, price);
         publishHoldingUpdated(buyer, HoldingUpdatedEvent.Reason.BUY, traceId);

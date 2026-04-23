@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.minupay.trade.common.config.KafkaConfig;
 import com.minupay.trade.common.consumer.ConsumedEventRecorder;
+import com.minupay.trade.common.money.Money;
 import com.minupay.trade.common.trace.TraceIdFilter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,8 +57,8 @@ public class AccountSettlementConsumer {
         Long buyerUserId = payload.path("buyerUserId").asLong();
         Long sellerUserId = payload.path("sellerUserId").asLong();
         int quantity = payload.path("quantity").asInt();
-        BigDecimal price = new BigDecimal(payload.path("price").asText());
-        BigDecimal amount = price.multiply(BigDecimal.valueOf(quantity));
+        Money price = Money.of(new BigDecimal(payload.path("price").asText()));
+        Money amount = price.multiply(quantity);
 
         accountService.settleBuy(buyerUserId, amount);
         accountService.settleSell(sellerUserId, amount);

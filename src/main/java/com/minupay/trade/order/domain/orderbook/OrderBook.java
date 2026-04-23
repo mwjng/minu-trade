@@ -1,9 +1,9 @@
 package com.minupay.trade.order.domain.orderbook;
 
+import com.minupay.trade.common.money.Money;
 import com.minupay.trade.order.domain.OrderSide;
 import lombok.Getter;
 
-import java.math.BigDecimal;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -20,8 +20,8 @@ public class OrderBook {
     @Getter
     private final String stockCode;
 
-    private final NavigableMap<BigDecimal, Deque<BookEntry>> buys = new TreeMap<>(Comparator.reverseOrder());
-    private final NavigableMap<BigDecimal, Deque<BookEntry>> sells = new TreeMap<>();
+    private final NavigableMap<Money, Deque<BookEntry>> buys = new TreeMap<>(Comparator.reverseOrder());
+    private final NavigableMap<Money, Deque<BookEntry>> sells = new TreeMap<>();
     private final Map<Long, BookEntry> index = new HashMap<>();
     private long sequence = 0L;
 
@@ -29,13 +29,13 @@ public class OrderBook {
         this.stockCode = stockCode;
     }
 
-    public MatchResult match(long orderId, OrderSide side, BigDecimal price, int quantity) {
+    public MatchResult match(long orderId, OrderSide side, Money price, int quantity) {
         List<Trade> trades = new ArrayList<>();
         int remaining = quantity;
-        NavigableMap<BigDecimal, Deque<BookEntry>> opposite = (side == OrderSide.BUY) ? sells : buys;
+        NavigableMap<Money, Deque<BookEntry>> opposite = (side == OrderSide.BUY) ? sells : buys;
 
         while (remaining > 0 && !opposite.isEmpty()) {
-            BigDecimal bestPrice = opposite.firstKey();
+            Money bestPrice = opposite.firstKey();
             if (!crosses(side, price, bestPrice)) break;
 
             Deque<BookEntry> queue = opposite.get(bestPrice);
@@ -59,7 +59,7 @@ public class OrderBook {
         boolean added = false;
         if (remaining > 0 && price != null) {
             BookEntry entry = new BookEntry(orderId, side, price, remaining, ++sequence);
-            NavigableMap<BigDecimal, Deque<BookEntry>> own = (side == OrderSide.BUY) ? buys : sells;
+            NavigableMap<Money, Deque<BookEntry>> own = (side == OrderSide.BUY) ? buys : sells;
             own.computeIfAbsent(price, p -> new ArrayDeque<>()).addLast(entry);
             index.put(orderId, entry);
             added = true;
@@ -70,7 +70,7 @@ public class OrderBook {
     public boolean cancel(long orderId) {
         BookEntry entry = index.remove(orderId);
         if (entry == null) return false;
-        NavigableMap<BigDecimal, Deque<BookEntry>> side = (entry.getSide() == OrderSide.BUY) ? buys : sells;
+        NavigableMap<Money, Deque<BookEntry>> side = (entry.getSide() == OrderSide.BUY) ? buys : sells;
         Deque<BookEntry> queue = side.get(entry.getPrice());
         if (queue == null) return false;
         queue.remove(entry);
@@ -78,20 +78,20 @@ public class OrderBook {
         return true;
     }
 
-    public Optional<BigDecimal> bestBid() {
+    public Optional<Money> bestBid() {
         return buys.isEmpty() ? Optional.empty() : Optional.of(buys.firstKey());
     }
 
-    public Optional<BigDecimal> bestAsk() {
+    public Optional<Money> bestAsk() {
         return sells.isEmpty() ? Optional.empty() : Optional.of(sells.firstKey());
     }
 
     public int depth(OrderSide side) {
-        NavigableMap<BigDecimal, Deque<BookEntry>> map = (side == OrderSide.BUY) ? buys : sells;
+        NavigableMap<Money, Deque<BookEntry>> map = (side == OrderSide.BUY) ? buys : sells;
         return map.values().stream().mapToInt(Deque::size).sum();
     }
 
-    private boolean crosses(OrderSide taker, BigDecimal takerPrice, BigDecimal makerPrice) {
+    private boolean crosses(OrderSide taker, Money takerPrice, Money makerPrice) {
         if (takerPrice == null) return true;
         return (taker == OrderSide.BUY)
                 ? takerPrice.compareTo(makerPrice) >= 0

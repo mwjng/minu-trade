@@ -8,6 +8,7 @@ import com.minupay.trade.common.exception.MinuTradeException;
 import com.minupay.trade.common.idempotency.IdempotencyKey;
 import com.minupay.trade.common.idempotency.IdempotencyService;
 import com.minupay.trade.common.idempotency.IdempotencyStatus;
+import com.minupay.trade.common.money.Money;
 import com.minupay.trade.order.application.dto.CancelOrderCommand;
 import com.minupay.trade.order.application.dto.OrderInfo;
 import com.minupay.trade.order.application.dto.PlaceOrderCommand;
@@ -192,7 +193,7 @@ class OrderFacadeTest {
         AccountForOrder account = new AccountForOrder(1L);
         when(accountService.resolveForOrder(USER_ID)).thenReturn(account);
         com.minupay.trade.order.domain.Order other = com.minupay.trade.order.domain.Order.place(
-                99L, "005930", OrderSide.BUY, OrderType.LIMIT, new BigDecimal("70000"), 1, "other-key"
+                99L, "005930", OrderSide.BUY, OrderType.LIMIT, Money.of(new BigDecimal("70000")), 1, "other-key"
         );
         other.accept();
         when(orderRepository.findById(7L)).thenReturn(java.util.Optional.of(other));
@@ -205,7 +206,7 @@ class OrderFacadeTest {
     @Test
     void 취소_요청은_matchingEngine_cancel_호출_후_결과_반환() {
         Order order = Order.place(1L, "005930", OrderSide.BUY, OrderType.LIMIT,
-                new BigDecimal("70000"), 10, "idem-c");
+                Money.of(new BigDecimal("70000")), 10, "idem-c");
         order.accept();
         when(orderRepository.findById(7L)).thenReturn(Optional.of(order));
         when(accountService.resolveForOrder(USER_ID)).thenReturn(new AccountForOrder(1L));
@@ -224,7 +225,7 @@ class OrderFacadeTest {
     @Test
     void 취소_다른_유저_주문이면_FORBIDDEN_그리고_engine_미호출() {
         Order order = Order.place(99L, "005930", OrderSide.BUY, OrderType.LIMIT,
-                new BigDecimal("70000"), 10, "idem-c");
+                Money.of(new BigDecimal("70000")), 10, "idem-c");
         order.accept();
         when(orderRepository.findById(7L)).thenReturn(Optional.of(order));
         when(accountService.resolveForOrder(USER_ID)).thenReturn(new AccountForOrder(1L));
@@ -239,7 +240,7 @@ class OrderFacadeTest {
     @Test
     void 이미_취소된_주문은_엔진_호출없이_바로_반환() {
         Order order = Order.place(1L, "005930", OrderSide.BUY, OrderType.LIMIT,
-                new BigDecimal("70000"), 10, "idem-c");
+                Money.of(new BigDecimal("70000")), 10, "idem-c");
         order.accept();
         order.cancel();
         when(orderRepository.findById(7L)).thenReturn(Optional.of(order));

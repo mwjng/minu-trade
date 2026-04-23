@@ -5,6 +5,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.minupay.trade.common.config.KafkaConfig;
 import com.minupay.trade.common.consumer.ConsumedEventRecorder;
 import com.minupay.trade.common.event.EventEnvelope;
+import com.minupay.trade.common.money.Money;
 import com.minupay.trade.order.domain.Execution;
 import com.minupay.trade.order.domain.event.TradeExecutedEvent;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -42,7 +43,7 @@ class AccountSettlementConsumerTest {
 
     private ConsumerRecord<String, String> tradeRecord(Long buyerUserId, Long sellerUserId,
                                                        BigDecimal price, int quantity) throws Exception {
-        Execution execution = Execution.of(1L, 2L, "005930", price, quantity);
+        Execution execution = Execution.of(1L, 2L, "005930", Money.of(price), quantity);
         var f = Execution.class.getDeclaredField("id");
         f.setAccessible(true);
         f.set(execution, 111L);
@@ -57,7 +58,7 @@ class AccountSettlementConsumerTest {
 
         consumer.onMessage(tradeRecord(10L, 20L, new BigDecimal("70000"), 3), ack);
 
-        BigDecimal expected = new BigDecimal("210000");
+        Money expected = Money.of(new BigDecimal("210000"));
         verify(accountService).settleBuy(eq(10L), eq(expected));
         verify(accountService).settleSell(eq(20L), eq(expected));
         verify(ack).acknowledge();

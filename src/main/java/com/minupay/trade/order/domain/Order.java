@@ -3,12 +3,12 @@ package com.minupay.trade.order.domain;
 import com.minupay.trade.common.entity.BaseTimeEntity;
 import com.minupay.trade.common.exception.ErrorCode;
 import com.minupay.trade.common.exception.MinuTradeException;
+import com.minupay.trade.common.money.Money;
+import com.minupay.trade.common.money.MoneyConverter;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.math.BigDecimal;
 
 @Entity
 @Table(
@@ -41,8 +41,9 @@ public class Order extends BaseTimeEntity {
     @Column(nullable = false)
     private OrderType type;
 
+    @Convert(converter = MoneyConverter.class)
     @Column(precision = 19, scale = 4)
-    private BigDecimal price;
+    private Money price;
 
     @Column(nullable = false)
     private int quantity;
@@ -58,7 +59,7 @@ public class Order extends BaseTimeEntity {
     private String idempotencyKey;
 
     private Order(Long accountId, String stockCode, OrderSide side, OrderType type,
-                  BigDecimal price, int quantity, String idempotencyKey) {
+                  Money price, int quantity, String idempotencyKey) {
         this.accountId = accountId;
         this.stockCode = stockCode;
         this.side = side;
@@ -71,12 +72,12 @@ public class Order extends BaseTimeEntity {
     }
 
     public static Order place(Long accountId, String stockCode, OrderSide side, OrderType type,
-                              BigDecimal price, int quantity, String idempotencyKey) {
+                              Money price, int quantity, String idempotencyKey) {
         if (quantity <= 0) {
             throw new MinuTradeException(ErrorCode.ORDER_INVALID_QUANTITY);
         }
         if (type == OrderType.LIMIT) {
-            if (price == null || price.signum() <= 0) {
+            if (price == null || !price.isGreaterThan(Money.ZERO)) {
                 throw new MinuTradeException(ErrorCode.ORDER_INVALID_PRICE);
             }
         } else if (price != null) {
@@ -124,9 +125,9 @@ public class Order extends BaseTimeEntity {
         this.status = OrderStatus.CANCELLED;
     }
 
-    public BigDecimal totalAmount() {
+    public Money totalAmount() {
         if (type != OrderType.LIMIT || price == null) return null;
-        return price.multiply(BigDecimal.valueOf(quantity));
+        return price.multiply(quantity);
     }
 
     public int remainingQuantity() {

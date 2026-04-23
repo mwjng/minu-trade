@@ -1,9 +1,10 @@
 package com.minupay.trade.common.money;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Objects;
 
-public final class Money {
+public final class Money implements Comparable<Money> {
 
     public static final Money ZERO = new Money(BigDecimal.ZERO);
 
@@ -36,6 +37,18 @@ public final class Money {
         return new Money(this.amount.multiply(BigDecimal.valueOf(multiplier)));
     }
 
+    public Money multiply(BigDecimal multiplier) {
+        return new Money(this.amount.multiply(multiplier));
+    }
+
+    public Money divide(long divisor, int scale, RoundingMode roundingMode) {
+        return new Money(this.amount.divide(BigDecimal.valueOf(divisor), scale, roundingMode));
+    }
+
+    public Money setScale(int scale, RoundingMode roundingMode) {
+        return new Money(this.amount.setScale(scale, roundingMode));
+    }
+
     public boolean isGreaterThan(Money other) {
         return this.amount.compareTo(other.amount) > 0;
     }
@@ -44,12 +57,21 @@ public final class Money {
         return this.amount.compareTo(other.amount) >= 0;
     }
 
+    public boolean isLessThan(Money other) {
+        return this.amount.compareTo(other.amount) < 0;
+    }
+
     public long toLong() {
         return amount.longValueExact();
     }
 
     public BigDecimal getAmount() {
         return amount;
+    }
+
+    @Override
+    public int compareTo(Money other) {
+        return this.amount.compareTo(other.amount);
     }
 
     @Override

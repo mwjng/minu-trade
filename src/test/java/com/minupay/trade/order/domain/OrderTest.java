@@ -2,6 +2,7 @@ package com.minupay.trade.order.domain;
 
 import com.minupay.trade.common.exception.ErrorCode;
 import com.minupay.trade.common.exception.MinuTradeException;
+import com.minupay.trade.common.money.Money;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -11,9 +12,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class OrderTest {
 
+    private static Money won(String value) {
+        return Money.of(new BigDecimal(value));
+    }
+
     private Order sampleLimitBuy() {
         return Order.place(1L, "005930", OrderSide.BUY, OrderType.LIMIT,
-                new BigDecimal("70000"), 10, "idem-1");
+                won("70000"), 10, "idem-1");
     }
 
     @Test
@@ -33,7 +38,7 @@ class OrderTest {
     @Test
     void 수량_0이하면_예외() {
         assertThatThrownBy(() -> Order.place(1L, "005930", OrderSide.BUY, OrderType.LIMIT,
-                new BigDecimal("70000"), 0, "idem"))
+                won("70000"), 0, "idem"))
                 .isInstanceOf(MinuTradeException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.ORDER_INVALID_QUANTITY);
     }
@@ -46,7 +51,7 @@ class OrderTest {
                 .extracting("errorCode").isEqualTo(ErrorCode.ORDER_INVALID_PRICE);
 
         assertThatThrownBy(() -> Order.place(1L, "005930", OrderSide.BUY, OrderType.LIMIT,
-                BigDecimal.ZERO, 10, "idem"))
+                Money.ZERO, 10, "idem"))
                 .isInstanceOf(MinuTradeException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.ORDER_INVALID_PRICE);
     }
@@ -54,7 +59,7 @@ class OrderTest {
     @Test
     void MARKET_주문에_가격이_있으면_예외() {
         assertThatThrownBy(() -> Order.place(1L, "005930", OrderSide.BUY, OrderType.MARKET,
-                new BigDecimal("70000"), 10, "idem"))
+                won("70000"), 10, "idem"))
                 .isInstanceOf(MinuTradeException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.ORDER_INVALID_PRICE);
     }
@@ -101,6 +106,6 @@ class OrderTest {
     @Test
     void totalAmount_는_가격x수량() {
         Order order = sampleLimitBuy();
-        assertThat(order.totalAmount()).isEqualByComparingTo(new BigDecimal("700000"));
+        assertThat(order.totalAmount().getAmount()).isEqualByComparingTo(new BigDecimal("700000"));
     }
 }

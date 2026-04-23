@@ -3,7 +3,10 @@ package com.minupay.trade.holding.domain;
 import com.minupay.trade.common.entity.BaseTimeEntity;
 import com.minupay.trade.common.exception.ErrorCode;
 import com.minupay.trade.common.exception.MinuTradeException;
+import com.minupay.trade.common.money.Money;
+import com.minupay.trade.common.money.MoneyConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -16,7 +19,6 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.math.BigDecimal;
 import java.math.RoundingMode;
 
 @Entity
@@ -47,13 +49,14 @@ public class Holding extends BaseTimeEntity {
     @Column(nullable = false)
     private int reservedQuantity;
 
+    @Convert(converter = MoneyConverter.class)
     @Column(nullable = false, precision = 19, scale = 4)
-    private BigDecimal avgPrice;
+    private Money avgPrice;
 
     @Version
     private Long version;
 
-    private Holding(Long userId, String stockCode, int quantity, BigDecimal avgPrice) {
+    private Holding(Long userId, String stockCode, int quantity, Money avgPrice) {
         this.userId = userId;
         this.stockCode = stockCode;
         this.quantity = quantity;
@@ -61,7 +64,7 @@ public class Holding extends BaseTimeEntity {
         this.avgPrice = avgPrice;
     }
 
-    public static Holding openForBuy(Long userId, String stockCode, int quantity, BigDecimal price) {
+    public static Holding openForBuy(Long userId, String stockCode, int quantity, Money price) {
         ensurePositiveQuantity(quantity);
         ensurePositivePrice(price);
         return new Holding(userId, stockCode, quantity, price.setScale(AVG_PRICE_SCALE, RoundingMode.HALF_UP));
@@ -71,14 +74,14 @@ public class Holding extends BaseTimeEntity {
         return quantity - reservedQuantity;
     }
 
-    public void buy(int quantity, BigDecimal price) {
+    public void buy(int quantity, Money price) {
         ensurePositiveQuantity(quantity);
         ensurePositivePrice(price);
-        BigDecimal existingCost = avgPrice.multiply(BigDecimal.valueOf(this.quantity));
-        BigDecimal addedCost = price.multiply(BigDecimal.valueOf(quantity));
+        Money existingCost = avgPrice.multiply(this.quantity);
+        Money addedCost = price.multiply(quantity);
         int newQuantity = this.quantity + quantity;
         this.avgPrice = existingCost.add(addedCost)
-                .divide(BigDecimal.valueOf(newQuantity), AVG_PRICE_SCALE, RoundingMode.HALF_UP);
+                .divide(newQuantity, AVG_PRICE_SCALE, RoundingMode.HALF_UP);
         this.quantity = newQuantity;
     }
 
@@ -117,8 +120,8 @@ public class Holding extends BaseTimeEntity {
         }
     }
 
-    private static void ensurePositivePrice(BigDecimal price) {
-        if (price == null || price.signum() <= 0) {
+    private static void ensurePositivePrice(Money price) {
+        if (price == null || !price.isGreaterThan(Money.ZERO)) {
             throw new MinuTradeException(ErrorCode.HOLDING_INVALID_PRICE);
         }
     }

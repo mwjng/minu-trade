@@ -1,10 +1,10 @@
 package com.minupay.trade.order.domain.orderbook;
 
-import java.math.BigDecimal;
+import com.minupay.trade.common.money.Money;
 
 public record Trade(
         long buyOrderId,
         long sellOrderId,
-        BigDecimal price,
+        Money price,
         int quantity
 ) {}

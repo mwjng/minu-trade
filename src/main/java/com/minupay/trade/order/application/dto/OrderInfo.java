@@ -25,7 +25,7 @@ public record OrderInfo(
                 order.getStockCode(),
                 order.getSide(),
                 order.getType(),
-                order.getPrice(),
+                order.getPrice() == null ? null : order.getPrice().getAmount(),
                 order.getQuantity(),
                 order.getFilledQuantity(),
                 order.getStatus()

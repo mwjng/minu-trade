@@ -1,7 +1,10 @@
 package com.minupay.trade.order.domain;
 
 import com.minupay.trade.common.entity.BaseTimeEntity;
+import com.minupay.trade.common.money.Money;
+import com.minupay.trade.common.money.MoneyConverter;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -11,8 +14,6 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import java.math.BigDecimal;
 
 @Entity
 @Table(
@@ -40,13 +41,14 @@ public class Execution extends BaseTimeEntity {
     @Column(nullable = false, length = 12)
     private String stockCode;
 
+    @Convert(converter = MoneyConverter.class)
     @Column(nullable = false, precision = 19, scale = 4)
-    private BigDecimal price;
+    private Money price;
 
     @Column(nullable = false)
     private int quantity;
 
-    private Execution(Long buyOrderId, Long sellOrderId, String stockCode, BigDecimal price, int quantity) {
+    private Execution(Long buyOrderId, Long sellOrderId, String stockCode, Money price, int quantity) {
         this.buyOrderId = buyOrderId;
         this.sellOrderId = sellOrderId;
         this.stockCode = stockCode;
@@ -54,7 +56,7 @@ public class Execution extends BaseTimeEntity {
         this.quantity = quantity;
     }
 
-    public static Execution of(Long buyOrderId, Long sellOrderId, String stockCode, BigDecimal price, int quantity) {
+    public static Execution of(Long buyOrderId, Long sellOrderId, String stockCode, Money price, int quantity) {
         return new Execution(buyOrderId, sellOrderId, stockCode, price, quantity);
     }
 }

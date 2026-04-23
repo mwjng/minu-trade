@@ -28,7 +28,7 @@ public class OrderCancelledEvent extends AbstractDomainEvent {
         this.accountId = order.getAccountId();
         this.stockCode = order.getStockCode();
         this.side = order.getSide();
-        this.price = order.getPrice();
+        this.price = order.getPrice() == null ? null : order.getPrice().getAmount();
         this.quantity = order.getQuantity();
         this.filledQuantity = order.getFilledQuantity();
         this.cancelledQuantity = cancelledQuantity;

@@ -3,6 +3,7 @@ package com.minupay.trade.account.application;
 import com.minupay.trade.account.application.dto.AccountInfo;
 import com.minupay.trade.account.application.dto.DepositCommand;
 import com.minupay.trade.account.application.dto.WithdrawCommand;
+import com.minupay.trade.common.money.Money;
 import com.minupay.trade.paymentclient.PayServiceClient;
 import com.minupay.trade.paymentclient.dto.WalletTxRequest;
 import com.minupay.trade.paymentclient.dto.WalletTxResponse;
@@ -39,15 +40,16 @@ class AccountFacadeTest {
     @Test
     void 입금_요청_시_pay_deduct_후_applyDeposit_호출() {
         BigDecimal amount = new BigDecimal("50000");
+        Money money = Money.of(amount);
         DepositCommand cmd = new DepositCommand(amount, "idem-1");
         AccountInfo expected = mock(AccountInfo.class);
-        when(accountService.applyDeposit(eq(1L), eq(amount))).thenReturn(expected);
+        when(accountService.applyDeposit(eq(1L), eq(money))).thenReturn(expected);
 
         AccountInfo result = facade.deposit(1L, cmd);
 
         WalletTxRequest req = new WalletTxRequest(amount, "TRADING_DEPOSIT", "idem-1");
         verify(payServiceClient).deduct(1L, req);
-        verify(accountService).applyDeposit(1L, amount);
+        verify(accountService).applyDeposit(1L, money);
         org.assertj.core.api.Assertions.assertThat(result).isSameAs(expected);
     }
 
@@ -65,14 +67,15 @@ class AccountFacadeTest {
     @Test
     void 출금_요청_시_applyWithdraw_후_pay_credit_호출() {
         BigDecimal amount = new BigDecimal("30000");
+        Money money = Money.of(amount);
         WithdrawCommand cmd = new WithdrawCommand(amount, "idem-3");
         AccountInfo afterDebit = mock(AccountInfo.class);
-        when(accountService.applyWithdraw(eq(1L), eq(amount))).thenReturn(afterDebit);
+        when(accountService.applyWithdraw(eq(1L), eq(money))).thenReturn(afterDebit);
         when(payServiceClient.credit(anyLong(), any())).thenReturn(new WalletTxResponse(10L, amount, BigDecimal.ZERO));
 
         AccountInfo result = facade.withdraw(1L, cmd);
 
-        verify(accountService).applyWithdraw(1L, amount);
+        verify(accountService).applyWithdraw(1L, money);
         WalletTxRequest req = new WalletTxRequest(amount, "TRADING_WITHDRAW", "idem-3");
         verify(payServiceClient).credit(1L, req);
         org.assertj.core.api.Assertions.assertThat(result).isSameAs(afterDebit);
@@ -81,23 +84,25 @@ class AccountFacadeTest {
     @Test
     void 출금_중_pay_credit_실패하면_applyDeposit으로_보상() {
         BigDecimal amount = new BigDecimal("30000");
+        Money money = Money.of(amount);
         WithdrawCommand cmd = new WithdrawCommand(amount, "idem-4");
         AccountInfo afterDebit = mock(AccountInfo.class);
-        when(accountService.applyWithdraw(eq(1L), eq(amount))).thenReturn(afterDebit);
+        when(accountService.applyWithdraw(eq(1L), eq(money))).thenReturn(afterDebit);
         when(payServiceClient.credit(anyLong(), any())).thenThrow(new RuntimeException("pay down"));
 
         assertThatThrownBy(() -> facade.withdraw(1L, cmd))
                 .isInstanceOf(RuntimeException.class);
 
-        verify(accountService).applyWithdraw(1L, amount);
-        verify(accountService).applyDeposit(1L, amount);
+        verify(accountService).applyWithdraw(1L, money);
+        verify(accountService).applyDeposit(1L, money);
     }
 
     @Test
     void 출금_보상_실패해도_원래_예외가_전파된다() {
         BigDecimal amount = new BigDecimal("30000");
+        Money money = Money.of(amount);
         WithdrawCommand cmd = new WithdrawCommand(amount, "idem-5");
-        when(accountService.applyWithdraw(eq(1L), eq(amount))).thenReturn(mock(AccountInfo.class));
+        when(accountService.applyWithdraw(eq(1L), eq(money))).thenReturn(mock(AccountInfo.class));
         when(payServiceClient.credit(anyLong(), any())).thenThrow(new RuntimeException("pay down"));
         when(accountService.applyDeposit(anyLong(), any())).thenThrow(new RuntimeException("db down"));
 

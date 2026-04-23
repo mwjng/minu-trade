@@ -1,5 +1,6 @@
 package com.minupay.trade.order.domain.orderbook;
 
+import com.minupay.trade.common.money.Money;
 import com.minupay.trade.order.domain.OrderSide;
 import org.junit.jupiter.api.Test;
 
@@ -9,8 +10,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class OrderBookTest {
 
-    private static BigDecimal p(String s) {
-        return new BigDecimal(s);
+    private static Money p(String s) {
+        return Money.of(new BigDecimal(s));
     }
 
     @Test
@@ -24,8 +25,8 @@ class OrderBookTest {
         assertThat(r1.restingEntryAdded()).isTrue();
         assertThat(r2.trades()).isEmpty();
         assertThat(r2.restingEntryAdded()).isTrue();
-        assertThat(book.bestAsk()).contains(p("70100"));
-        assertThat(book.bestBid()).contains(p("70000"));
+        assertThat(book.bestAsk()).map(Money::getAmount).get().isEqualTo(new BigDecimal("70100"));
+        assertThat(book.bestBid()).map(Money::getAmount).get().isEqualTo(new BigDecimal("70000"));
     }
 
     @Test
@@ -39,7 +40,7 @@ class OrderBookTest {
         Trade t = taker.trades().get(0);
         assertThat(t.buyOrderId()).isEqualTo(2L);
         assertThat(t.sellOrderId()).isEqualTo(1L);
-        assertThat(t.price()).isEqualByComparingTo("70000");
+        assertThat(t.price().getAmount()).isEqualByComparingTo("70000");
         assertThat(t.quantity()).isEqualTo(10);
         assertThat(taker.restingEntryAdded()).isFalse();
         assertThat(book.bestAsk()).isEmpty();
@@ -56,7 +57,7 @@ class OrderBookTest {
         assertThat(taker.trades().get(0).quantity()).isEqualTo(4);
         assertThat(taker.remainingQuantity()).isEqualTo(6);
         assertThat(taker.restingEntryAdded()).isTrue();
-        assertThat(book.bestBid()).contains(p("70000"));
+        assertThat(book.bestBid()).map(Money::getAmount).get().isEqualTo(new BigDecimal("70000"));
         assertThat(book.bestAsk()).isEmpty();
     }
 
@@ -71,12 +72,12 @@ class OrderBookTest {
 
         assertThat(taker.trades()).hasSize(3);
         assertThat(taker.trades().get(0).sellOrderId()).isEqualTo(1L);
-        assertThat(taker.trades().get(0).price()).isEqualByComparingTo("70000");
+        assertThat(taker.trades().get(0).price().getAmount()).isEqualByComparingTo("70000");
         assertThat(taker.trades().get(1).sellOrderId()).isEqualTo(2L);
         assertThat(taker.trades().get(2).sellOrderId()).isEqualTo(3L);
         assertThat(taker.trades().get(2).quantity()).isEqualTo(3);
         assertThat(taker.remainingQuantity()).isZero();
-        assertThat(book.bestAsk()).contains(p("70100"));
+        assertThat(book.bestAsk()).map(Money::getAmount).get().isEqualTo(new BigDecimal("70100"));
     }
 
     @Test
@@ -103,9 +104,9 @@ class OrderBookTest {
         MatchResult taker = book.match(3L, OrderSide.BUY, p("70200"), 10);
 
         assertThat(taker.trades().get(0).sellOrderId()).isEqualTo(2L);
-        assertThat(taker.trades().get(0).price()).isEqualByComparingTo("70000");
+        assertThat(taker.trades().get(0).price().getAmount()).isEqualByComparingTo("70000");
         assertThat(taker.trades().get(1).sellOrderId()).isEqualTo(1L);
-        assertThat(taker.trades().get(1).price()).isEqualByComparingTo("70200");
+        assertThat(taker.trades().get(1).price().getAmount()).isEqualByComparingTo("70200");
     }
 
     @Test
@@ -117,7 +118,7 @@ class OrderBookTest {
         MatchResult taker = book.match(3L, OrderSide.SELL, p("69800"), 10);
 
         assertThat(taker.trades().get(0).buyOrderId()).isEqualTo(2L);
-        assertThat(taker.trades().get(0).price()).isEqualByComparingTo("70000");
+        assertThat(taker.trades().get(0).price().getAmount()).isEqualByComparingTo("70000");
         assertThat(taker.trades().get(1).buyOrderId()).isEqualTo(1L);
     }
 

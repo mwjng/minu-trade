@@ -6,11 +6,10 @@ import com.minupay.trade.account.domain.Account;
 import com.minupay.trade.account.domain.AccountRepository;
 import com.minupay.trade.common.exception.ErrorCode;
 import com.minupay.trade.common.exception.MinuTradeException;
+import com.minupay.trade.common.money.Money;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
@@ -51,35 +50,35 @@ public class AccountService implements AccountLookup {
     }
 
     @Transactional
-    public AccountInfo releaseReserve(Long userId, BigDecimal amount) {
+    public AccountInfo releaseReserve(Long userId, Money amount) {
         Account account = loadForUpdate(userId);
         account.releaseReserve(amount);
         return AccountInfo.from(account);
     }
 
     @Transactional
-    public AccountInfo settleBuy(Long userId, BigDecimal amount) {
+    public AccountInfo settleBuy(Long userId, Money amount) {
         Account account = loadForUpdate(userId);
         account.settleBuy(amount);
         return AccountInfo.from(account);
     }
 
     @Transactional
-    public AccountInfo settleSell(Long userId, BigDecimal amount) {
+    public AccountInfo settleSell(Long userId, Money amount) {
         Account account = loadForUpdate(userId);
         account.settleSell(amount);
         return AccountInfo.from(account);
     }
 
     @Transactional
-    public AccountInfo applyDeposit(Long userId, BigDecimal amount) {
+    public AccountInfo applyDeposit(Long userId, Money amount) {
         Account account = loadForUpdate(userId);
         account.deposit(amount);
         return AccountInfo.from(account);
     }
 
     @Transactional
-    public AccountInfo applyWithdraw(Long userId, BigDecimal amount) {
+    public AccountInfo applyWithdraw(Long userId, Money amount) {
         Account account = loadForUpdate(userId);
         account.withdraw(amount);
         return AccountInfo.from(account);

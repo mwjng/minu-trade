@@ -18,9 +18,9 @@ public record AccountInfo(
                 account.getId(),
                 account.getUserId(),
                 account.getStatus(),
-                account.getBalance(),
-                account.getReservedBalance(),
-                account.availableBalance()
+                account.getBalance().getAmount(),
+                account.getReservedBalance().getAmount(),
+                account.availableBalance().getAmount()
         );
     }
 }

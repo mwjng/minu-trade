@@ -2,6 +2,7 @@ package com.minupay.trade.holding.application;
 
 import com.minupay.trade.common.exception.ErrorCode;
 import com.minupay.trade.common.exception.MinuTradeException;
+import com.minupay.trade.common.money.Money;
 import com.minupay.trade.holding.application.dto.HoldingInfo;
 import com.minupay.trade.holding.domain.Holding;
 import com.minupay.trade.holding.domain.HoldingRepository;
@@ -9,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,7 +20,7 @@ public class HoldingService {
     private final HoldingRepository holdingRepository;
 
     @Transactional
-    public HoldingInfo applyBuy(Long userId, String stockCode, int quantity, BigDecimal price) {
+    public HoldingInfo applyBuy(Long userId, String stockCode, int quantity, Money price) {
         Optional<Holding> existing = holdingRepository.findByUserIdAndStockCode(userId, stockCode);
         if (existing.isPresent()) {
             Holding holding = existing.get();

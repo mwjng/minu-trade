@@ -1,5 +1,6 @@
 package com.minupay.trade.order.application;
 
+import com.minupay.trade.common.money.Money;
 import com.minupay.trade.order.application.dto.MatchCommand;
 import com.minupay.trade.order.domain.OrderSide;
 import com.minupay.trade.order.domain.OrderType;
@@ -85,7 +86,7 @@ class MatchingEngineTest {
 
     private MatchCommand cmd(long orderId, String stockCode) {
         return new MatchCommand(orderId, stockCode, OrderSide.BUY, OrderType.LIMIT,
-                new BigDecimal("70000"), 1);
+                Money.of(new BigDecimal("70000")), 1);
     }
 
     @FunctionalInterface

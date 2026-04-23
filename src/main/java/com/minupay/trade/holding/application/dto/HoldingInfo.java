@@ -21,7 +21,7 @@ public record HoldingInfo(
                 holding.getQuantity(),
                 holding.getReservedQuantity(),
                 holding.availableQuantity(),
-                holding.getAvgPrice()
+                holding.getAvgPrice().getAmount()
         );
     }
 }

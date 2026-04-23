@@ -9,6 +9,7 @@ import com.minupay.trade.common.event.DomainEvent;
 import com.minupay.trade.common.event.EventEnvelope;
 import com.minupay.trade.common.exception.ErrorCode;
 import com.minupay.trade.common.exception.MinuTradeException;
+import com.minupay.trade.common.money.Money;
 import com.minupay.trade.common.outbox.Outbox;
 import com.minupay.trade.common.outbox.OutboxRepository;
 import com.minupay.trade.common.trace.TraceIdFilter;
@@ -33,8 +34,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
 
 @Slf4j
 @Component
@@ -111,7 +110,7 @@ public class MatchingProcessor {
             return;
         }
         if (order.getSide() == OrderSide.BUY) {
-            BigDecimal amount = order.getPrice().multiply(BigDecimal.valueOf(cancelledQty));
+            Money amount = order.getPrice().multiply(cancelledQty);
             accountService.releaseReserve(userId, amount);
             return;
         }

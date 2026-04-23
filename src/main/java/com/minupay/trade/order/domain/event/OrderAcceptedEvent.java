@@ -29,7 +29,7 @@ public class OrderAcceptedEvent extends AbstractDomainEvent {
         this.stockCode = order.getStockCode();
         this.side = order.getSide();
         this.type = order.getType();
-        this.price = order.getPrice();
+        this.price = order.getPrice() == null ? null : order.getPrice().getAmount();
         this.quantity = order.getQuantity();
     }
 

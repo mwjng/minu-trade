@@ -5,6 +5,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.minupay.trade.common.config.KafkaConfig;
 import com.minupay.trade.common.consumer.ConsumedEventRecorder;
 import com.minupay.trade.common.event.EventEnvelope;
+import com.minupay.trade.common.money.Money;
 import com.minupay.trade.common.outbox.Outbox;
 import com.minupay.trade.common.outbox.OutboxRepository;
 import com.minupay.trade.holding.application.dto.HoldingInfo;
@@ -58,7 +59,7 @@ class TradeExecutedConsumerTest {
     }
 
     private Execution executionStub() throws Exception {
-        Execution execution = Execution.of(1L, 2L, "005930", new BigDecimal("70000"), 10);
+        Execution execution = Execution.of(1L, 2L, "005930", Money.of(new BigDecimal("70000")), 10);
         var f = Execution.class.getDeclaredField("id");
         f.setAccessible(true);
         f.set(execution, 111L);
@@ -75,7 +76,7 @@ class TradeExecutedConsumerTest {
 
         consumer.onMessage(tradeRecord(10L, 20L), ack);
 
-        verify(holdingService).applyBuy(10L, "005930", 10, new BigDecimal("70000"));
+        verify(holdingService).applyBuy(10L, "005930", 10, Money.of(new BigDecimal("70000")));
         verify(holdingService).settleSell(20L, "005930", 10);
 
         ArgumentCaptor<Outbox> captor = ArgumentCaptor.forClass(Outbox.class);

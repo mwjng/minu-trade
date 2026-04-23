@@ -9,6 +9,7 @@ import com.minupay.trade.common.event.EventEnvelope;
 import com.minupay.trade.common.exception.ErrorCode;
 import com.minupay.trade.common.exception.MinuTradeException;
 import com.minupay.trade.common.idempotency.IdempotencyService;
+import com.minupay.trade.common.money.Money;
 import com.minupay.trade.common.outbox.Outbox;
 import com.minupay.trade.common.outbox.OutboxRepository;
 import com.minupay.trade.common.trace.TraceIdFilter;
@@ -23,8 +24,6 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
@@ -43,14 +42,15 @@ public class OrderPersistenceService {
                 .orElseThrow(() -> new MinuTradeException(ErrorCode.ACCOUNT_NOT_FOUND));
         account.ensureCanPlaceOrder();
 
-        reserveResources(account, userId, cmd);
+        Money price = cmd.price() == null ? null : Money.of(cmd.price());
+        reserveResources(account, userId, cmd, price);
 
         Order order = Order.place(
                 account.getId(),
                 cmd.stockCode(),
                 cmd.side(),
                 cmd.type(),
-                cmd.price(),
+                price,
                 cmd.quantity(),
                 cmd.idempotencyKey()
         );
@@ -63,10 +63,9 @@ public class OrderPersistenceService {
         return info;
     }
 
-    private void reserveResources(Account account, Long userId, PlaceOrderCommand cmd) {
+    private void reserveResources(Account account, Long userId, PlaceOrderCommand cmd, Money price) {
         if (cmd.side() == OrderSide.BUY) {
-            BigDecimal amount = cmd.price().multiply(BigDecimal.valueOf(cmd.quantity()));
-            account.reserve(amount);
+            account.reserve(price.multiply(cmd.quantity()));
             return;
         }
         holdingService.reserveSell(userId, cmd.stockCode(), cmd.quantity());

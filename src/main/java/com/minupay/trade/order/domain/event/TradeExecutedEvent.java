@@ -29,7 +29,7 @@ public class TradeExecutedEvent extends AbstractDomainEvent {
         this.buyerUserId = buyerUserId;
         this.sellerUserId = sellerUserId;
         this.stockCode = execution.getStockCode();
-        this.price = execution.getPrice();
+        this.price = execution.getPrice().getAmount();
         this.quantity = execution.getQuantity();
     }
 
