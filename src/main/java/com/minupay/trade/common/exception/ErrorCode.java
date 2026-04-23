@@ -46,6 +46,7 @@ public enum ErrorCode {
     ORDER_TICK_NOT_ALIGNED(HttpStatus.BAD_REQUEST, "O006", "Price is not aligned with tick size"),
     ORDER_MARKET_NOT_SUPPORTED(HttpStatus.BAD_REQUEST, "O007", "Market order is not yet supported"),
     ORDER_FORBIDDEN(HttpStatus.FORBIDDEN, "O008", "Order does not belong to this account"),
+    ORDER_CANCEL_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "O009", "Order cancel request timed out"),
 
     // Holding
     HOLDING_NOT_FOUND(HttpStatus.NOT_FOUND, "H001", "Holding not found"),

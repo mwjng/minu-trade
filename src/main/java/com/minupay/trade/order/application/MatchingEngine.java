@@ -1,6 +1,8 @@
 package com.minupay.trade.order.application;
 
+import com.minupay.trade.order.application.dto.CancelOrderCommand;
 import com.minupay.trade.order.application.dto.MatchCommand;
+import com.minupay.trade.order.application.dto.OrderInfo;
 import com.minupay.trade.order.domain.orderbook.OrderBook;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +36,12 @@ public class MatchingEngine {
                 throw e;
             }
         }, executor);
+    }
+
+    public CompletableFuture<OrderInfo> cancel(CancelOrderCommand cmd) {
+        ExecutorService executor = executors.computeIfAbsent(cmd.stockCode(), this::newExecutor);
+        OrderBook book = books.computeIfAbsent(cmd.stockCode(), OrderBook::new);
+        return CompletableFuture.supplyAsync(() -> processor.cancel(book, cmd), executor);
     }
 
     public OrderBook bookOf(String stockCode) {

@@ -51,6 +51,13 @@ public class AccountService implements AccountLookup {
     }
 
     @Transactional
+    public AccountInfo releaseReserve(Long userId, BigDecimal amount) {
+        Account account = loadForUpdate(userId);
+        account.releaseReserve(amount);
+        return AccountInfo.from(account);
+    }
+
+    @Transactional
     public AccountInfo settleBuy(Long userId, BigDecimal amount) {
         Account account = loadForUpdate(userId);
         account.settleBuy(amount);

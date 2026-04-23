@@ -8,11 +8,13 @@ import com.minupay.trade.common.exception.ErrorCode;
 import com.minupay.trade.common.exception.MinuTradeException;
 import com.minupay.trade.common.idempotency.IdempotencyKey;
 import com.minupay.trade.common.idempotency.IdempotencyService;
+import com.minupay.trade.order.application.dto.CancelOrderCommand;
 import com.minupay.trade.order.application.dto.MatchCommand;
 import com.minupay.trade.order.application.dto.OrderInfo;
 import com.minupay.trade.order.application.dto.PlaceOrderCommand;
 import com.minupay.trade.order.domain.Order;
 import com.minupay.trade.order.domain.OrderRepository;
+import com.minupay.trade.order.domain.OrderStatus;
 import com.minupay.trade.order.domain.OrderType;
 import com.minupay.trade.stock.application.StockService;
 import com.minupay.trade.stock.application.dto.StockInfo;
@@ -27,6 +29,10 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Service
 @RequiredArgsConstructor
@@ -79,6 +85,33 @@ public class OrderFacade {
         }
         return OrderInfo.from(order);
     }
+
+    public OrderInfo cancelOrder(Long userId, Long orderId) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new MinuTradeException(ErrorCode.ORDER_NOT_FOUND));
+        AccountForOrder account = accountService.resolveForOrder(userId);
+        if (!order.getAccountId().equals(account.accountId())) {
+            throw new MinuTradeException(ErrorCode.ORDER_FORBIDDEN);
+        }
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            return OrderInfo.from(order);
+        }
+
+        CancelOrderCommand cmd = new CancelOrderCommand(orderId, order.getStockCode(), userId);
+        try {
+            return matchingEngine.cancel(cmd).get(CANCEL_TIMEOUT_SEC, TimeUnit.SECONDS);
+        } catch (ExecutionException | CompletionException e) {
+            if (e.getCause() instanceof MinuTradeException mte) throw mte;
+            throw new MinuTradeException(ErrorCode.INTERNAL_ERROR);
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new MinuTradeException(ErrorCode.INTERNAL_ERROR);
+        } catch (TimeoutException te) {
+            throw new MinuTradeException(ErrorCode.ORDER_CANCEL_TIMEOUT);
+        }
+    }
+
+    private static final long CANCEL_TIMEOUT_SEC = 3;
 
     private OrderInfo resolveReplay(String key, String requestHash) {
         IdempotencyKey slot = idempotencyService.getSlot(key);

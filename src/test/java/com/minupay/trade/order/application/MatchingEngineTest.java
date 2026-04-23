@@ -96,7 +96,7 @@ class MatchingEngineTest {
     private static class RecordingProcessor extends MatchingProcessor {
         private final ProcessFn fn;
         RecordingProcessor(ProcessFn fn) {
-            super(null, null, null, null, null);
+            super(null, null, null, null, null, null, null);
             this.fn = fn;
         }
         @Override

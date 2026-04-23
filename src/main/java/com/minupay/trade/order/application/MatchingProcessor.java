@@ -3,6 +3,7 @@ package com.minupay.trade.order.application;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.minupay.trade.account.application.AccountLookup;
+import com.minupay.trade.account.application.AccountService;
 import com.minupay.trade.common.config.KafkaConfig;
 import com.minupay.trade.common.event.DomainEvent;
 import com.minupay.trade.common.event.EventEnvelope;
@@ -11,12 +12,17 @@ import com.minupay.trade.common.exception.MinuTradeException;
 import com.minupay.trade.common.outbox.Outbox;
 import com.minupay.trade.common.outbox.OutboxRepository;
 import com.minupay.trade.common.trace.TraceIdFilter;
+import com.minupay.trade.holding.application.HoldingService;
+import com.minupay.trade.order.application.dto.CancelOrderCommand;
 import com.minupay.trade.order.application.dto.MatchCommand;
 import com.minupay.trade.order.domain.Execution;
 import com.minupay.trade.order.domain.ExecutionRepository;
 import com.minupay.trade.order.domain.Order;
 import com.minupay.trade.order.domain.OrderRepository;
+import com.minupay.trade.order.domain.OrderSide;
 import com.minupay.trade.order.domain.OrderStatus;
+import com.minupay.trade.order.application.dto.OrderInfo;
+import com.minupay.trade.order.domain.event.OrderCancelledEvent;
 import com.minupay.trade.order.domain.event.OrderFilledEvent;
 import com.minupay.trade.order.domain.event.TradeExecutedEvent;
 import com.minupay.trade.order.domain.orderbook.MatchResult;
@@ -28,6 +34,8 @@ import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -37,6 +45,8 @@ public class MatchingProcessor {
     private final ExecutionRepository executionRepository;
     private final OutboxRepository outboxRepository;
     private final AccountLookup accountLookup;
+    private final AccountService accountService;
+    private final HoldingService holdingService;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -68,6 +78,46 @@ public class MatchingProcessor {
         return result;
     }
 
+    @Transactional
+    public OrderInfo cancel(OrderBook book, CancelOrderCommand cmd) {
+        Order order = orderRepository.findByIdForUpdate(cmd.orderId())
+                .orElseThrow(() -> new MinuTradeException(ErrorCode.ORDER_NOT_FOUND));
+
+        Long ownerUserId = accountLookup.getUserId(order.getAccountId());
+        if (!ownerUserId.equals(cmd.userId())) {
+            throw new MinuTradeException(ErrorCode.ORDER_FORBIDDEN);
+        }
+        if (!isCancellable(order.getStatus())) {
+            throw new MinuTradeException(ErrorCode.ORDER_INVALID_STATE);
+        }
+
+        int cancelled = order.remainingQuantity();
+        book.cancel(order.getId());
+        releaseReserves(order, ownerUserId, cancelled);
+        order.cancel();
+
+        String traceId = MDC.get(TraceIdFilter.MDC_KEY);
+        publishOrderCancelled(order, cancelled, traceId);
+        log.info("order cancelled id={} stock={} cancelledQty={}", order.getId(), order.getStockCode(), cancelled);
+        return OrderInfo.from(order);
+    }
+
+    private boolean isCancellable(OrderStatus status) {
+        return status == OrderStatus.ACCEPTED || status == OrderStatus.PARTIALLY_FILLED;
+    }
+
+    private void releaseReserves(Order order, Long userId, int cancelledQty) {
+        if (cancelledQty <= 0) {
+            return;
+        }
+        if (order.getSide() == OrderSide.BUY) {
+            BigDecimal amount = order.getPrice().multiply(BigDecimal.valueOf(cancelledQty));
+            accountService.releaseReserve(userId, amount);
+            return;
+        }
+        holdingService.releaseSell(userId, order.getStockCode(), cancelledQty);
+    }
+
     private Order loadOrder(long orderId) {
         return orderRepository.findById(orderId)
                 .orElseThrow(() -> new MinuTradeException(ErrorCode.ORDER_NOT_FOUND));
@@ -93,6 +143,18 @@ public class MatchingProcessor {
                 OrderFilledEvent.AGGREGATE_TYPE,
                 OrderFilledEvent.EVENT_TYPE,
                 KafkaConfig.TOPIC_ORDER_FILLED,
+                order.getStockCode(),
+                toPayload(event)
+        ));
+    }
+
+    private void publishOrderCancelled(Order order, int cancelledQuantity, String traceId) {
+        OrderCancelledEvent event = OrderCancelledEvent.of(order, cancelledQuantity, traceId);
+        outboxRepository.save(Outbox.create(
+                String.valueOf(order.getId()),
+                OrderCancelledEvent.AGGREGATE_TYPE,
+                OrderCancelledEvent.EVENT_TYPE,
+                KafkaConfig.TOPIC_ORDER_CANCELLED,
                 order.getStockCode(),
                 toPayload(event)
         ));

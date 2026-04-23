@@ -8,8 +8,10 @@ import com.minupay.trade.common.exception.MinuTradeException;
 import com.minupay.trade.common.idempotency.IdempotencyKey;
 import com.minupay.trade.common.idempotency.IdempotencyService;
 import com.minupay.trade.common.idempotency.IdempotencyStatus;
+import com.minupay.trade.order.application.dto.CancelOrderCommand;
 import com.minupay.trade.order.application.dto.OrderInfo;
 import com.minupay.trade.order.application.dto.PlaceOrderCommand;
+import com.minupay.trade.order.domain.Order;
 import com.minupay.trade.order.domain.OrderRepository;
 import com.minupay.trade.order.domain.OrderSide;
 import com.minupay.trade.order.domain.OrderStatus;
@@ -31,6 +33,8 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -196,6 +200,55 @@ class OrderFacadeTest {
         assertThatThrownBy(() -> facade.getForUser(USER_ID, 7L))
                 .isInstanceOf(MinuTradeException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.ORDER_FORBIDDEN);
+    }
+
+    @Test
+    void 취소_요청은_matchingEngine_cancel_호출_후_결과_반환() {
+        Order order = Order.place(1L, "005930", OrderSide.BUY, OrderType.LIMIT,
+                new BigDecimal("70000"), 10, "idem-c");
+        order.accept();
+        when(orderRepository.findById(7L)).thenReturn(Optional.of(order));
+        when(accountService.resolveForOrder(USER_ID)).thenReturn(new AccountForOrder(1L));
+
+        OrderInfo cancelled = new OrderInfo(7L, 1L, "005930", OrderSide.BUY, OrderType.LIMIT,
+                new BigDecimal("70000"), 10, 0, OrderStatus.CANCELLED);
+        when(matchingEngine.cancel(any(CancelOrderCommand.class)))
+                .thenReturn(CompletableFuture.completedFuture(cancelled));
+
+        OrderInfo result = facade.cancelOrder(USER_ID, 7L);
+
+        assertThat(result.status()).isEqualTo(OrderStatus.CANCELLED);
+        verify(matchingEngine).cancel(any(CancelOrderCommand.class));
+    }
+
+    @Test
+    void 취소_다른_유저_주문이면_FORBIDDEN_그리고_engine_미호출() {
+        Order order = Order.place(99L, "005930", OrderSide.BUY, OrderType.LIMIT,
+                new BigDecimal("70000"), 10, "idem-c");
+        order.accept();
+        when(orderRepository.findById(7L)).thenReturn(Optional.of(order));
+        when(accountService.resolveForOrder(USER_ID)).thenReturn(new AccountForOrder(1L));
+
+        assertThatThrownBy(() -> facade.cancelOrder(USER_ID, 7L))
+                .isInstanceOf(MinuTradeException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.ORDER_FORBIDDEN);
+
+        verify(matchingEngine, never()).cancel(any());
+    }
+
+    @Test
+    void 이미_취소된_주문은_엔진_호출없이_바로_반환() {
+        Order order = Order.place(1L, "005930", OrderSide.BUY, OrderType.LIMIT,
+                new BigDecimal("70000"), 10, "idem-c");
+        order.accept();
+        order.cancel();
+        when(orderRepository.findById(7L)).thenReturn(Optional.of(order));
+        when(accountService.resolveForOrder(USER_ID)).thenReturn(new AccountForOrder(1L));
+
+        OrderInfo result = facade.cancelOrder(USER_ID, 7L);
+
+        assertThat(result.status()).isEqualTo(OrderStatus.CANCELLED);
+        verify(matchingEngine, never()).cancel(any());
     }
 
     private IdempotencyKey spyIdemKey(String key, String hash, String response, IdempotencyStatus status) {

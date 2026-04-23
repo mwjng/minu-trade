@@ -35,4 +35,12 @@ public class OrderController {
     ) {
         return ResponseEntity.ok(ApiResponse.ok(orderFacade.getForUser(loginUser.getUserId(), id)));
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<OrderInfo>> cancel(
+            @AuthenticationPrincipal LoginUser loginUser,
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(ApiResponse.ok(orderFacade.cancelOrder(loginUser.getUserId(), id)));
+    }
 }
