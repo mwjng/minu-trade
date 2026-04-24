@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -99,5 +100,33 @@ class TradeExecutedConsumerTest {
         verify(holdingService, never()).settleSell(anyLong(), anyString(), anyInt());
         verify(outboxRepository, never()).save(any());
         verify(ack).acknowledge();
+    }
+
+    @Test
+    void buy_성공_후_sell_실패하면_ack_안하고_예외_전파() throws Exception {
+        when(consumedEventRecorder.markIfAbsent(anyString(), anyString(), anyString())).thenReturn(true);
+        when(holdingService.applyBuy(eq(10L), eq("005930"), anyInt(), any()))
+                .thenReturn(new HoldingInfo(1L, 10L, "005930", 10, 0, 10, new BigDecimal("70000")));
+        when(holdingService.settleSell(eq(20L), eq("005930"), anyInt()))
+                .thenThrow(new RuntimeException("db down"));
+
+        assertThatThrownBy(() -> consumer.onMessage(tradeRecord(10L, 20L), ack))
+                .isInstanceOf(IllegalStateException.class);
+
+        verify(ack, never()).acknowledge();
+    }
+
+    @Test
+    void 잘못된_JSON_은_예외_전파_ack_안함() {
+        ConsumerRecord<String, String> bad =
+                new ConsumerRecord<>(KafkaConfig.TOPIC_TRADE_EXECUTED, 0, 0L, "005930", "not-json");
+
+        assertThatThrownBy(() -> consumer.onMessage(bad, ack))
+                .isInstanceOf(IllegalStateException.class);
+
+        verify(holdingService, never()).applyBuy(anyLong(), anyString(), anyInt(), any());
+        verify(holdingService, never()).settleSell(anyLong(), anyString(), anyInt());
+        verify(outboxRepository, never()).save(any());
+        verify(ack, never()).acknowledge();
     }
 }

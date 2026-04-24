@@ -13,6 +13,7 @@ import org.slf4j.MDC;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 
@@ -27,6 +28,7 @@ public class AccountSettlementConsumer {
     private final ConsumedEventRecorder consumedEventRecorder;
     private final AccountService accountService;
 
+    @Transactional
     @KafkaListener(
             topics = KafkaConfig.TOPIC_TRADE_EXECUTED,
             groupId = CONSUMER_GROUP,
