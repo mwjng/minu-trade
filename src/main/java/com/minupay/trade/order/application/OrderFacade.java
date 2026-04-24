@@ -10,9 +10,11 @@ import com.minupay.trade.common.idempotency.IdempotencyKey;
 import com.minupay.trade.common.idempotency.IdempotencyService;
 import com.minupay.trade.common.money.Money;
 import com.minupay.trade.order.application.dto.CancelOrderCommand;
+import com.minupay.trade.order.application.dto.ExecutionInfo;
 import com.minupay.trade.order.application.dto.MatchCommand;
 import com.minupay.trade.order.application.dto.OrderInfo;
 import com.minupay.trade.order.application.dto.PlaceOrderCommand;
+import com.minupay.trade.order.domain.ExecutionRepository;
 import com.minupay.trade.order.domain.Order;
 import com.minupay.trade.order.domain.OrderRepository;
 import com.minupay.trade.order.domain.OrderStatus;
@@ -22,6 +24,8 @@ import com.minupay.trade.stock.application.dto.StockInfo;
 import com.minupay.trade.stock.domain.StockStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +46,7 @@ public class OrderFacade {
     private final AccountService accountService;
     private final StockService stockService;
     private final OrderRepository orderRepository;
+    private final ExecutionRepository executionRepository;
     private final OrderPersistenceService orderPersistenceService;
     private final MatchingEngine matchingEngine;
     private final IdempotencyService idempotencyService;
@@ -86,6 +91,24 @@ public class OrderFacade {
             throw new MinuTradeException(ErrorCode.ORDER_FORBIDDEN);
         }
         return OrderInfo.from(order);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<OrderInfo> listForUser(Long userId, OrderStatus status, Pageable pageable) {
+        AccountForOrder account = accountService.resolveForOrder(userId);
+        return orderRepository.findByAccountId(account.accountId(), status, pageable)
+                .map(OrderInfo::from);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ExecutionInfo> listExecutionsForUser(Long userId, Long orderId, Pageable pageable) {
+        AccountForOrder account = accountService.resolveForOrder(userId);
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new MinuTradeException(ErrorCode.ORDER_NOT_FOUND));
+        if (!order.getAccountId().equals(account.accountId())) {
+            throw new MinuTradeException(ErrorCode.ORDER_FORBIDDEN);
+        }
+        return executionRepository.findByOrderId(orderId, pageable).map(ExecutionInfo::from);
     }
 
     public OrderInfo cancelOrder(Long userId, Long orderId) {

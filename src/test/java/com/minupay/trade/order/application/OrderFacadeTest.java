@@ -10,8 +10,11 @@ import com.minupay.trade.common.idempotency.IdempotencyService;
 import com.minupay.trade.common.idempotency.IdempotencyStatus;
 import com.minupay.trade.common.money.Money;
 import com.minupay.trade.order.application.dto.CancelOrderCommand;
+import com.minupay.trade.order.application.dto.ExecutionInfo;
 import com.minupay.trade.order.application.dto.OrderInfo;
 import com.minupay.trade.order.application.dto.PlaceOrderCommand;
+import com.minupay.trade.order.domain.Execution;
+import com.minupay.trade.order.domain.ExecutionRepository;
 import com.minupay.trade.order.domain.Order;
 import com.minupay.trade.order.domain.OrderRepository;
 import com.minupay.trade.order.domain.OrderSide;
@@ -34,8 +37,14 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -52,6 +61,7 @@ class OrderFacadeTest {
     @Mock AccountService accountService;
     @Mock StockService stockService;
     @Mock OrderRepository orderRepository;
+    @Mock ExecutionRepository executionRepository;
     @Mock OrderPersistenceService orderPersistenceService;
     @Mock MatchingEngine matchingEngine;
     @Mock IdempotencyService idempotencyService;
@@ -66,7 +76,7 @@ class OrderFacadeTest {
     void setup() {
         facade = new OrderFacade(
                 accountService, stockService,
-                orderRepository, orderPersistenceService, matchingEngine,
+                orderRepository, executionRepository, orderPersistenceService, matchingEngine,
                 idempotencyService, objectMapper
         );
     }
@@ -250,6 +260,70 @@ class OrderFacadeTest {
 
         assertThat(result.status()).isEqualTo(OrderStatus.CANCELLED);
         verify(matchingEngine, never()).cancel(any());
+    }
+
+    @Test
+    void listForUser_status_없으면_null로_레포_호출하고_DTO로_매핑() {
+        AccountForOrder account = new AccountForOrder(1L);
+        when(accountService.resolveForOrder(USER_ID)).thenReturn(account);
+        Order order = Order.place(1L, "005930", OrderSide.BUY, OrderType.LIMIT,
+                Money.of(new BigDecimal("70000")), 10, "k1");
+        Pageable pageable = PageRequest.of(0, 20);
+        when(orderRepository.findByAccountId(1L, null, pageable))
+                .thenReturn(new PageImpl<>(List.of(order), pageable, 1));
+
+        Page<OrderInfo> page = facade.listForUser(USER_ID, null, pageable);
+
+        assertThat(page.getTotalElements()).isEqualTo(1);
+        assertThat(page.getContent().get(0).stockCode()).isEqualTo("005930");
+        verify(orderRepository).findByAccountId(1L, null, pageable);
+    }
+
+    @Test
+    void listForUser_status_주어지면_같은_레포_메서드에_status_전달() {
+        AccountForOrder account = new AccountForOrder(1L);
+        when(accountService.resolveForOrder(USER_ID)).thenReturn(account);
+        Pageable pageable = PageRequest.of(0, 20);
+        when(orderRepository.findByAccountId(1L, OrderStatus.FILLED, pageable))
+                .thenReturn(new PageImpl<>(List.of(), pageable, 0));
+
+        Page<OrderInfo> page = facade.listForUser(USER_ID, OrderStatus.FILLED, pageable);
+
+        assertThat(page.getTotalElements()).isZero();
+        verify(orderRepository).findByAccountId(1L, OrderStatus.FILLED, pageable);
+    }
+
+    @Test
+    void listExecutionsForUser_본인_주문이면_체결_페이지_반환() throws Exception {
+        AccountForOrder account = new AccountForOrder(1L);
+        when(accountService.resolveForOrder(USER_ID)).thenReturn(account);
+        Order order = Order.place(1L, "005930", OrderSide.BUY, OrderType.LIMIT,
+                Money.of(new BigDecimal("70000")), 10, "idem-exec");
+        when(orderRepository.findById(7L)).thenReturn(Optional.of(order));
+        Execution exec = Execution.of(7L, 8L, "005930", Money.of(new BigDecimal("70000")), 5);
+        Pageable pageable = PageRequest.of(0, 20);
+        when(executionRepository.findByOrderId(7L, pageable))
+                .thenReturn(new PageImpl<>(List.of(exec), pageable, 1));
+
+        Page<ExecutionInfo> page = facade.listExecutionsForUser(USER_ID, 7L, pageable);
+
+        assertThat(page.getTotalElements()).isEqualTo(1);
+        assertThat(page.getContent().get(0).quantity()).isEqualTo(5);
+    }
+
+    @Test
+    void listExecutionsForUser_다른_유저_주문이면_FORBIDDEN() {
+        AccountForOrder account = new AccountForOrder(1L);
+        when(accountService.resolveForOrder(USER_ID)).thenReturn(account);
+        Order other = Order.place(99L, "005930", OrderSide.BUY, OrderType.LIMIT,
+                Money.of(new BigDecimal("70000")), 10, "idem-x");
+        when(orderRepository.findById(7L)).thenReturn(Optional.of(other));
+
+        assertThatThrownBy(() -> facade.listExecutionsForUser(USER_ID, 7L, PageRequest.of(0, 20)))
+                .isInstanceOf(MinuTradeException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.ORDER_FORBIDDEN);
+
+        verify(executionRepository, never()).findByOrderId(any(), any());
     }
 
     private IdempotencyKey spyIdemKey(String key, String hash, String response, IdempotencyStatus status) {
