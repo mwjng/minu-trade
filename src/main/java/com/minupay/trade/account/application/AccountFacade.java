@@ -24,7 +24,12 @@ public class AccountFacade {
     public AccountInfo deposit(Long userId, DepositCommand cmd) {
         Money amount = Money.of(cmd.amount());
         payServiceClient.deduct(userId, new WalletTxRequest(cmd.amount(), DEPOSIT_REASON, cmd.idempotencyKey()));
-        return accountService.applyDeposit(userId, amount);
+        try {
+            return accountService.applyDeposit(userId, amount);
+        } catch (RuntimeException e) {
+            compensateDeposit(userId, cmd);
+            throw e;
+        }
     }
 
     public AccountInfo withdraw(Long userId, WithdrawCommand cmd) {
@@ -36,6 +41,17 @@ public class AccountFacade {
         } catch (RuntimeException e) {
             compensateWithdraw(userId, amount, cmd);
             throw e;
+        }
+    }
+
+    private void compensateDeposit(Long userId, DepositCommand cmd) {
+        try {
+            WalletTxRequest refund = new WalletTxRequest(cmd.amount(), DEPOSIT_REASON + "_COMPENSATE",
+                    cmd.idempotencyKey() + ":compensate");
+            payServiceClient.credit(userId, refund);
+        } catch (RuntimeException compensationEx) {
+            log.error("deposit compensation failed userId={} amount={} idem={}",
+                    userId, cmd.amount(), cmd.idempotencyKey(), compensationEx);
         }
     }
 

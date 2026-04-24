@@ -62,6 +62,39 @@ class AccountFacadeTest {
                 .isInstanceOf(RuntimeException.class);
 
         verify(accountService, never()).applyDeposit(anyLong(), any());
+        verify(payServiceClient, never()).credit(anyLong(), any());
+    }
+
+    @Test
+    void 입금_중_applyDeposit_실패하면_pay_credit으로_보상() {
+        BigDecimal amount = new BigDecimal("50000");
+        Money money = Money.of(amount);
+        DepositCommand cmd = new DepositCommand(amount, "idem-dep-comp");
+        when(accountService.applyDeposit(eq(1L), eq(money)))
+                .thenThrow(new RuntimeException("db down"));
+
+        assertThatThrownBy(() -> facade.deposit(1L, cmd))
+                .isInstanceOf(RuntimeException.class);
+
+        WalletTxRequest deductReq = new WalletTxRequest(amount, "TRADING_DEPOSIT", "idem-dep-comp");
+        WalletTxRequest refundReq = new WalletTxRequest(amount, "TRADING_DEPOSIT_COMPENSATE", "idem-dep-comp:compensate");
+        verify(payServiceClient).deduct(1L, deductReq);
+        verify(payServiceClient).credit(1L, refundReq);
+    }
+
+    @Test
+    void 입금_보상_실패해도_원래_예외가_전파된다() {
+        BigDecimal amount = new BigDecimal("50000");
+        Money money = Money.of(amount);
+        DepositCommand cmd = new DepositCommand(amount, "idem-dep-compfail");
+        when(accountService.applyDeposit(eq(1L), eq(money)))
+                .thenThrow(new RuntimeException("db down"));
+        when(payServiceClient.credit(anyLong(), any()))
+                .thenThrow(new RuntimeException("pay down"));
+
+        assertThatThrownBy(() -> facade.deposit(1L, cmd))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("db down");
     }
 
     @Test
