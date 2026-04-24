@@ -25,12 +25,8 @@ class ChosungConverterTest {
     }
 
     @Test
-    void 초성만_입력_판별() {
-        assertThat(ChosungConverter.isChosungOnly("ㅅㅅㅈㅈ")).isTrue();
-        assertThat(ChosungConverter.isChosungOnly("삼성")).isFalse();
-        assertThat(ChosungConverter.isChosungOnly("ㅅㅅ ㅈㅈ")).isTrue();
-        assertThat(ChosungConverter.isChosungOnly("ㅅㅅa")).isFalse();
-        assertThat(ChosungConverter.isChosungOnly("")).isFalse();
-        assertThat(ChosungConverter.isChosungOnly(null)).isFalse();
+    void 자소와_음절_혼합된_입력_처리() {
+        assertThat(ChosungConverter.toChosung("삼ㅅ")).isEqualTo("ㅅㅅ");
+        assertThat(ChosungConverter.toChosung("삼성ㅈ")).isEqualTo("ㅅㅅㅈ");
     }
 }

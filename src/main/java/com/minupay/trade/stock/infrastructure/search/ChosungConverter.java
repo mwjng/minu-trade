@@ -26,17 +26,4 @@ public final class ChosungConverter {
         }
         return sb.toString();
     }
-
-    public static boolean isChosungOnly(String input) {
-        if (input == null || input.isBlank()) return false;
-        for (char c : input.toCharArray()) {
-            if (c == ' ') continue;
-            boolean isChosung = false;
-            for (char ch : CHOSUNG) {
-                if (ch == c) { isChosung = true; break; }
-            }
-            if (!isChosung) return false;
-        }
-        return true;
-    }
 }

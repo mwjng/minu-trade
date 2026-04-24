@@ -1,6 +1,7 @@
 package com.minupay.trade.stock.presentation;
 
 import com.minupay.trade.common.response.ApiResponse;
+import com.minupay.trade.common.response.PageResponse;
 import com.minupay.trade.stock.application.StockSearchService;
 import com.minupay.trade.stock.application.StockService;
 import com.minupay.trade.stock.application.dto.StockInfo;
@@ -8,10 +9,10 @@ import com.minupay.trade.stock.application.dto.StockSearchResult;
 import com.minupay.trade.stock.presentation.dto.UpsertStockRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/stocks")
@@ -32,10 +33,13 @@ public class StockController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<ApiResponse<List<StockSearchResult>>> search(
+    public ResponseEntity<ApiResponse<PageResponse<StockSearchResult>>> search(
             @RequestParam String keyword,
-            @RequestParam(required = false) Integer size
+            @PageableDefault(size = 20) Pageable pageable
     ) {
-        return ResponseEntity.ok(ApiResponse.ok(stockSearchService.search(keyword, size)));
+        PageResponse<StockSearchResult> body = PageResponse.from(
+                stockSearchService.search(keyword, pageable)
+        );
+        return ResponseEntity.ok(ApiResponse.ok(body));
     }
 }
