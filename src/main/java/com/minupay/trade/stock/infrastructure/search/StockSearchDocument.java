@@ -10,6 +10,8 @@ import org.springframework.data.elasticsearch.annotations.DateFormat;
 import org.springframework.data.elasticsearch.annotations.Document;
 import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
+import org.springframework.data.elasticsearch.annotations.InnerField;
+import org.springframework.data.elasticsearch.annotations.MultiField;
 
 import java.time.LocalDate;
 
@@ -21,10 +23,20 @@ public class StockSearchDocument {
     @Id
     private String code;
 
-    @Field(type = FieldType.Text, analyzer = "nori")
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "nori"),
+            otherFields = {
+                    @InnerField(suffix = "suggest", type = FieldType.Search_As_You_Type)
+            }
+    )
     private String name;
 
-    @Field(type = FieldType.Text, analyzer = "standard")
+    @MultiField(
+            mainField = @Field(type = FieldType.Text, analyzer = "standard"),
+            otherFields = {
+                    @InnerField(suffix = "suggest", type = FieldType.Search_As_You_Type)
+            }
+    )
     private String nameChosung;
 
     @Field(type = FieldType.Keyword)

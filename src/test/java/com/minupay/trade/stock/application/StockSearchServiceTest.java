@@ -2,7 +2,9 @@ package com.minupay.trade.stock.application;
 
 import co.elastic.clients.elasticsearch._types.query_dsl.BoolQuery;
 import co.elastic.clients.elasticsearch._types.query_dsl.Query;
+import co.elastic.clients.elasticsearch._types.query_dsl.TextQueryType;
 import com.minupay.trade.stock.application.dto.StockSearchResult;
+import com.minupay.trade.stock.application.dto.StockSuggestion;
 import com.minupay.trade.stock.domain.Market;
 import com.minupay.trade.stock.domain.StockStatus;
 import com.minupay.trade.stock.infrastructure.search.StockSearchDocument;
@@ -27,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -53,7 +56,7 @@ class StockSearchServiceTest {
                 })
                 .toList();
         given(hits.stream()).willReturn(hitList.stream());
-        given(hits.getTotalHits()).willReturn(total);
+        lenient().when(hits.getTotalHits()).thenReturn(total);
         return hits;
     }
 
@@ -170,5 +173,89 @@ class StockSearchServiceTest {
 
         assertThat(page.getTotalElements()).isEqualTo(42L);
         assertThat(page.getTotalPages()).isEqualTo(3);
+    }
+
+    @Test
+    void suggest_키워드가_비어있거나_null이면_ES_호출없이_빈_리스트() {
+        assertThat(service.suggest("  ", 10)).isEmpty();
+        assertThat(service.suggest(null, 10)).isEmpty();
+        verifyNoInteractions(operations);
+    }
+
+    @Test
+    void suggest_는_name과_nameChosung의_search_as_you_type_서브필드를_bool_prefix로_질의() {
+        SearchHits<StockSearchDocument> hits = hitsOf(List.of(sample("005930", "삼성전자")), 1L);
+        given(operations.search(any(NativeQuery.class), eq(StockSearchDocument.class))).willReturn(hits);
+
+        List<StockSuggestion> result = service.suggest("삼", 10);
+
+        assertThat(result).hasSize(1);
+        BoolQuery bool = captureQuery().getQuery().bool();
+        assertThat(bool.filter()).hasSize(1);
+        assertThat(bool.should()).hasSize(2);
+
+        for (Query should : bool.should()) {
+            assertThat(should.multiMatch().type()).isEqualTo(TextQueryType.BoolPrefix);
+        }
+
+        List<String> fields = bool.should().stream()
+                .flatMap(q -> q.multiMatch().fields().stream())
+                .toList();
+        assertThat(fields).contains(
+                "name.suggest", "name.suggest._2gram", "name.suggest._3gram",
+                "nameChosung.suggest", "nameChosung.suggest._2gram", "nameChosung.suggest._3gram"
+        );
+    }
+
+    @Test
+    void suggest_혼합_입력은_초성변환된_값을_nameChosung_suggest에_질의() {
+        SearchHits<StockSearchDocument> hits = hitsOf(List.of(), 0L);
+        given(operations.search(any(NativeQuery.class), eq(StockSearchDocument.class))).willReturn(hits);
+
+        service.suggest("삼ㅅ", 10);
+
+        BoolQuery bool = captureQuery().getQuery().bool();
+        Query chosungPrefix = bool.should().stream()
+                .filter(q -> q.multiMatch().fields().contains("nameChosung.suggest"))
+                .findFirst().orElseThrow();
+        assertThat(chosungPrefix.multiMatch().query()).isEqualTo("ㅅㅅ");
+
+        Query namePrefix = bool.should().stream()
+                .filter(q -> q.multiMatch().fields().contains("name.suggest"))
+                .findFirst().orElseThrow();
+        assertThat(namePrefix.multiMatch().query()).isEqualTo("삼ㅅ");
+    }
+
+    @Test
+    void suggest_TRADING_상태_필터가_filter절에_포함() {
+        SearchHits<StockSearchDocument> hits = hitsOf(List.of(), 0L);
+        given(operations.search(any(NativeQuery.class), eq(StockSearchDocument.class))).willReturn(hits);
+
+        service.suggest("삼성", 10);
+
+        BoolQuery bool = captureQuery().getQuery().bool();
+        Query filter = bool.filter().get(0);
+        assertThat(filter.term().field()).isEqualTo("status");
+        assertThat(filter.term().value().stringValue()).isEqualTo(StockStatus.TRADING.name());
+    }
+
+    @Test
+    void suggest_limit은_10을_초과하지_못한다() {
+        SearchHits<StockSearchDocument> hits = hitsOf(List.of(), 0L);
+        given(operations.search(any(NativeQuery.class), eq(StockSearchDocument.class))).willReturn(hits);
+
+        service.suggest("삼성", 100);
+
+        assertThat(captureQuery().getPageable().getPageSize()).isEqualTo(10);
+    }
+
+    @Test
+    void suggest_limit_0이하면_기본값_10() {
+        SearchHits<StockSearchDocument> hits = hitsOf(List.of(), 0L);
+        given(operations.search(any(NativeQuery.class), eq(StockSearchDocument.class))).willReturn(hits);
+
+        service.suggest("삼성", 0);
+
+        assertThat(captureQuery().getPageable().getPageSize()).isEqualTo(10);
     }
 }
