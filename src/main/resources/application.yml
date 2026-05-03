@@ -23,6 +23,11 @@ kis:
   app-key: ${KIS_APP_KEY:}
   app-secret: ${KIS_APP_SECRET:}
   websocket-url: ${KIS_WS_URL:ws://ops.koreainvestment.com:31000}
+  mock:
+    enabled: ${KIS_MOCK_ENABLED:false}
+    interval-ms: ${KIS_MOCK_INTERVAL_MS:500}
+    jitter-ratio: ${KIS_MOCK_JITTER_RATIO:0.5}
+    stock-codes: ${KIS_MOCK_STOCK_CODES:005930,000660,035720,005380,051910}
 
 outbox:
   publisher:
@@ -62,6 +67,10 @@ resilience4j:
         cancelRunningFuture: true
 
 ---
+kis:
+  mock:
+    enabled: ${KIS_MOCK_ENABLED:true}
+
 spring:
   config:
     activate:
