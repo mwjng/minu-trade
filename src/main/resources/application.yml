@@ -37,6 +37,7 @@ outbox:
 audit:
   consumer:
     group-id: trade-audit-consumer-group
+    include-quote: ${AUDIT_INCLUDE_QUOTE:false}
 
 matching:
   engine:
