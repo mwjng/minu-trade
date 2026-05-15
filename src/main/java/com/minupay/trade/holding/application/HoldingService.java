@@ -15,7 +15,7 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class HoldingService {
+public class HoldingService implements HoldingLookup {
 
     private final HoldingRepository holdingRepository;
 
@@ -56,11 +56,17 @@ public class HoldingService {
         return snapshot;
     }
 
+    @Override
     @Transactional(readOnly = true)
-    public List<HoldingInfo> getMyHoldings(Long userId) {
+    public List<HoldingInfo> findByUserId(Long userId) {
         return holdingRepository.findAllByUserIdOrderByStockCodeAsc(userId).stream()
                 .map(HoldingInfo::from)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<HoldingInfo> getMyHoldings(Long userId) {
+        return findByUserId(userId);
     }
 
     private Holding loadHolding(Long userId, String stockCode) {
